@@ -1,3 +1,6 @@
+"""
+Some utilities.
+"""
 import random
 import torch
 import numpy as np
@@ -7,12 +10,13 @@ from IPython import display
 from matplotlib import pyplot as plt
 from torch import nn
 from collections import OrderedDict
+import metrics
 
 
 def get_data_batch(batch_size, features, labels):
     """
-    Get data batches from given samples. Each sample is consists of (features, label).
-    features and labels are torch tensors.
+    Get data batches from given samples where features and labels are torch tensors.
+    The first h_exp is sample_num, whatever dims each feature is.
     """
     sample_num = len(features)
     indices = list(range(sample_num))
@@ -27,73 +31,7 @@ def get_data_batch_torch(batch_size, features, labels):
     Get data batches from given samples by torch.
     """
     dataset = D.TensorDataset(features, labels)
-    return D.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=2)
-
-
-def squared_loss(y_hat, y):
-    """
-    y_hat and y are 1-dim torch tensor with size (sample_num).
-    What is returned is a torch tensor with the same size as y_hat's (y's).
-    """
-    return (y_hat - y.view(y_hat.size())) ** 2 / 2
-
-
-def cross_entropy_loss(y_hat, y):
-    """
-    y_hat is of size (sample_num, label_num), y is of size (sample_num), where each element indicates the
-    true label of each sample.
-    y.view(-1, 1) makes y being of new size: (sample_num, 1).
-    """
-    return -torch.log(y_hat.gather(1, y.view(-1, 1)))
-
-
-def get_classify_accuracy(y_hat, y):
-    """
-    Get accuracy for classification task.
-    Get the accuracy of samples, where y_hat is of size (sample_num, label_num), y is of size (sample_num).
-    """
-    return (y_hat.argmax(dim=1) == y).float().mean().item()
-
-
-def evaluate_classify_accuracy(data_iter, model, W, b):
-    """
-    Calculate the accuracy over the data_iter in batch way for classification task.
-    """
-    acc_sum, n = 0., 0
-    for X, y in data_iter:
-        acc_sum += (model(X, W, b).argmax(dim=1) == y).float().sum().item()
-        n += y.shape[0]
-    return acc_sum / n
-
-
-def evaluate_classify_accuracy_net(data_iter, net):
-    """
-    Calculate the accuracy over the data_iter in batch way for classification task.
-    Use for model defined by torch.
-    """
-    acc_sum, n = 0., 0
-    for X, y in data_iter:
-        acc_sum += (net(X).argmax(dim=1) == y).float().sum().item()
-        n += y.shape[0]
-    return acc_sum / n
-
-
-def sgd(params, lr, batch_size):
-    """
-    Mini-batch stochastic gradient descent for parameter update.
-    """
-    for param in params:
-        param.data -= lr * param.grad / batch_size
-
-
-def softmax(Z):
-    """
-    Map the input vectors into distributions for each sample.
-    Z = XW + b is of size (sample_num, label_num).
-    """
-    Z_exp = Z.exp()
-    partition = Z_exp.sum(dim=1, keepdim=True)   # add for each sample
-    return Z_exp / partition
+    return D.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=4)
 
 
 def load_fashion_MNIST(batch_size, resize=None, root='data', num_workers=4):
@@ -168,41 +106,42 @@ def show_fashion_MNIST(images, labels, save_path='figs/fashion_MNIST.png'):
     plt.show()
 
 
-class FlattenLayer(nn.Module):
+def xyplot(x_vals, y_vals, name, save_path):
+    use_svg_display()
+    set_figsize(figsize=(4, 2.5))
+    # use tensor.detach().numpy() to get np array
+    plt.plot(x_vals.detach().numpy(), y_vals.detach().numpy())
+    plt.xlabel('x')
+    plt.ylabel(name + '(x)')
+    plt.savefig(save_path)
+    plt.show()
+
+
+def plot_activate_funcs(func, name, save_path):
     """
-    Flatten the img (2-dim or 3-dim tensor) into a vector.
+    Plot function y = f(x) and y = f'(x).
     """
-    def __init__(self):
-        super(FlattenLayer, self).__init__()
+    x = torch.arange(-8., 8., 0.1, requires_grad=True)
+    y = func(x)
+    xyplot(x, y, name, save_path)
 
-    def forward(self, X):
-        return X.view(X.shape[0], -1)
+    tmp = save_path.split('/')
+    new_save_path = tmp[0] + '/' + tmp[1].split('.')[0] + '_grad.png'
+    y.sum().backward()
+    xyplot(x, x.grad, 'grad of ' + name, new_save_path)
 
 
-def universal_train(train_iter, test_iter, net, loss, optimizer, epoch_num):
-    """
-    A universal training function for network defined by torch and used for classification.
-    """
-    for epoch in range(epoch_num):
-        train_ls_sum, train_acc_sum, n = 0., 0., 0
-        for X, y in train_iter:
-            y_hat = net(X)
-            ls = loss(y_hat, y).sum()
-            optimizer.zero_grad()
-
-            # call backward() to calculate the grad of params
-            ls.backward()
-            # use optimizer to update the grad for one step
-            optimizer.step()
-
-            train_ls_sum += ls.item()
-            train_acc_sum += get_classify_accuracy(y_hat, y)
-            n += y.shape[0]
-
-        # evaluate accuracy on the test set
-        test_acc = evaluate_classify_accuracy_net(test_iter, net)
-        print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f' %
-              (epoch + 1, train_ls_sum / n, train_acc_sum / n, test_acc))
+def plot_semilogy(save_path, x_vals, y_vals, x_label, y_label, x2_vals=None, y2_vals=None, legend=None, figsize=(3.5, 2.5)):
+    use_svg_display()
+    set_figsize(figsize)
+    plt.xlabel(x_label)
+    plt.ylabel(y_label)
+    plt.semilogy(x_vals, y_vals)
+    if x2_vals and y2_vals:
+        plt.semilogy(x2_vals, y2_vals, linestyle=':')
+        plt.legend(legend)
+    plt.savefig(save_path)
+    plt.show()
 
 
 if __name__ == '__main__':
@@ -223,11 +162,11 @@ if __name__ == '__main__':
     # 2. test cross_entropy_loss
     y_hat = torch.tensor([[0.1, 0.3, 0.6], [0.3, 0.2, 0.5], [0.2, 0.2, 0.6]])
     y = torch.tensor([0, 2, 2], dtype=torch.int64)
-    print(cross_entropy_loss(y_hat, y).sum())
+    print(metrics.cross_entropy_loss(y_hat, y).sum())
 
     # 3. test softmax
     X = torch.rand((2, 5))
-    print(softmax(X).sum(dim=1))
+    print(metrics.softmax(X).sum(dim=1))
 
     # 4. test load_fashion_MNIST and show_fashion_MNIST
     train_iter, test_iter = load_fashion_MNIST(batch_size=10)
@@ -237,8 +176,13 @@ if __name__ == '__main__':
     # 5. test FlattenLayer and classify accuracy
     net = nn.Sequential(
         OrderedDict([
-            ('flatten', FlattenLayer()),
+            ('flatten', metrics.FlattenLayer()),
             ('linear', nn.Linear(in_features=784, out_features=10))
         ])
     )
-    print(evaluate_classify_accuracy_net(test_iter, net))
+    print(metrics.evaluate_classify_accuracy(test_iter, net))
+
+    # 6. test activate functions
+    plot_activate_funcs(nn.ReLU(), 'relu', save_path='figs/relu.png')
+    plot_activate_funcs(nn.Sigmoid(), 'sigmoid', save_path='figs/sigmoid.png')
+    plot_activate_funcs(nn.Tanh(), 'tanh', save_path='figs/tanh.png')
