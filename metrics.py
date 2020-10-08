@@ -101,6 +101,13 @@ def dropout(X, drop_prob):
     return mask * X / keep_prob
 
 
+def l2_penalty(W):
+    """
+    The L2-norm of given parameter W.
+    """
+    return (W**2).sum() / 2
+
+
 def universal_train(net, train_iter, test_iter, loss, num_epochs, batch_size, params=None, lr=None, optimizer=None):
     """
     A universal training function for net and used for classification.
