@@ -1,3 +1,6 @@
+"""
+This module tests under-fitting, over-fitting, and regularization by a regression.
+"""
 import tools
 import metrics
 from linear import regression
@@ -141,7 +144,7 @@ if __name__ == '__main__':
                       epoch_num=100, batch_size=1, lambd=10, lr=0.003, save_path='../figs/large_weight_decay.png')
 
     # 4. test regularization with torch
-    loss = nn.MSELoss()
+    # loss = nn.MSELoss()
     test_weight_decay_torch(train_features, test_features, train_labels, test_labels,
                             epoch_num=100, batch_size=1, lambd=0, save_path='../figs/little_weight_decay_torch.png')
     test_weight_decay_torch(train_features, test_features, train_labels, test_labels,

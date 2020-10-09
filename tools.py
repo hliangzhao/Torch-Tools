@@ -17,6 +17,7 @@ def get_data_batch(batch_size, features, labels):
     """
     Get data batches from given samples where features and labels are torch tensors.
     The first h_exp is sample_num, whatever dims each feature is.
+    :return: data_iter consists of (X, y)
     """
     sample_num = len(features)
     indices = list(range(sample_num))
@@ -29,6 +30,7 @@ def get_data_batch(batch_size, features, labels):
 def get_data_batch_torch(batch_size, features, labels):
     """
     Get data batches from given samples by torch.
+    :return: data_iter consists of (X, y)
     """
     dataset = D.TensorDataset(features, labels)
     return D.DataLoader(dataset=dataset, batch_size=batch_size, shuffle=True, num_workers=4)
@@ -117,9 +119,9 @@ def xyplot(x_vals, y_vals, name, save_path):
     plt.show()
 
 
-def plot_activate_funcs(func, name, save_path):
+def plot_funcs(func, name, save_path):
     """
-    Plot function y = f(x) and y = f'(x).
+    Plot [x, y1] and [x, y2] where y1 = f(x) and y2 = f'(x).
     """
     x = torch.arange(-8., 8., 0.1, requires_grad=True)
     y = func(x)
@@ -183,6 +185,6 @@ if __name__ == '__main__':
     print(metrics.evaluate_classify_accuracy(test_iter, net))
 
     # 6. test activate functions
-    plot_activate_funcs(nn.ReLU(), 'relu', save_path='figs/relu.png')
-    plot_activate_funcs(nn.Sigmoid(), 'sigmoid', save_path='figs/sigmoid.png')
-    plot_activate_funcs(nn.Tanh(), 'tanh', save_path='figs/tanh.png')
+    plot_funcs(nn.ReLU(), 'relu', save_path='figs/relu.png')
+    plot_funcs(nn.Sigmoid(), 'sigmoid', save_path='figs/sigmoid.png')
+    plot_funcs(nn.Tanh(), 'tanh', save_path='figs/tanh.png')

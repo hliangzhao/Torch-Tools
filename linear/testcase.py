@@ -5,6 +5,7 @@ import torch
 from torch import nn, optim
 import pandas as pd
 import tools
+from linear import regression
 
 
 def read_data(train_data_path, test_data_path):
@@ -35,6 +36,7 @@ def preprocess(train_data, test_data):
     train_features = torch.tensor(all_features[:n_train].values, dtype=torch.float)
     test_features = torch.tensor(all_features[n_train:].values, dtype=torch.float)
     train_labels = torch.tensor(train_data[train_data.columns[-1]].values, dtype=torch.float).view(-1, 1)
+
     print(train_features.shape, test_features.shape, '\n', train_labels)
     return train_features, test_features, train_labels
 
@@ -46,7 +48,7 @@ def log_rmse(net, features, labels):
     """
     with torch.no_grad():
         clipped_preds = torch.max(net(features), torch.tensor(1.))
-        rmse = torch.sqrt(loss(torch.log(clipped_preds), torch.log(labels)))
+        rmse = torch.sqrt(loss(clipped_preds.log(), labels.log()))
     return rmse.item()
 
 
@@ -59,7 +61,7 @@ def train(net, train_features, train_labels, test_features, test_labels, epoch_n
             optimizer.zero_grad()
             ls.backward()
             optimizer.step()
-        train_ls.append(log_rmse(net, train_features, test_features))
+        train_ls.append(log_rmse(net, train_features, train_labels))
         if test_labels is not None:
             test_ls.append(log_rmse(net, test_features, test_labels))
     return train_ls, test_ls
@@ -85,13 +87,36 @@ def get_k_fold(k, i, X, y):
     return X_train, y_train, X_valid, y_valid
 
 
-def k_fold_train(k, X_train, y_train, epoch_num, lr, weight_decay, batch_size):
-    pass
+def k_fold_train_and_pred(k, X_train, y_train, epoch_num, lr, weight_decay, batch_size, test_features, test_data):
+    """
+    Because we do not have test dataset, we use k-fold cross-validation to train and test our model.
+    """
+    # train
+    net = regression.LinearNet(in_feature=X_train.shape[-1])
+    train_ls_sum, valid_ls_sum = 0., 0.
+    for i in range(k):
+        data = get_k_fold(k, i, X_train, y_train)
+        train_ls, valid_ls = train(net, *data, epoch_num, lr, weight_decay, batch_size)
+        train_ls_sum += train_ls[-1]
+        valid_ls_sum += valid_ls[-1]
+        print('fold %d, train rmse %f, valid rmse %f' % (i, train_ls[-1], valid_ls[-1]))
+        if i == 0:
+            tools.plot_semilogy('../figs/house_price_pred.png',
+                                range(1, epoch_num + 1), train_ls, 'epoch', 'rmse',
+                                range(1, epoch_num + 1), valid_ls, ['train', 'valid'])
+    print('%d-fold validation: avg train rmse %f, avg valid rmse %f' % (k, train_ls_sum / k, valid_ls_sum / k))
+
+    # predict
+    preds = net(test_features).detach().numpy()
+    # get 1-dim numpy array
+    test_data['SalePrice'] = pd.Series(preds.reshape(1, -1)[0])
+    submit = pd.concat([test_data['Id'], test_data['SalePrice']], axis=1)
+    submit.to_csv('../data/kaggle_house/submission.csv', index=False)
 
 
 if __name__ == '__main__':
     train_data, test_data = read_data('../data/kaggle_house/train.csv', '../data/kaggle_house/test.csv')
-    preprocess(train_data, test_data)
+    train_features, test_features, train_labels = preprocess(train_data, test_data)
     loss = nn.MSELoss()
-    k, num_epochs, lr, weight_decay, batch_size = 5, 250, 5, 0, 64
-
+    k, epoch_num, lr, weight_decay, batch_size = 5, 250, 5, 0, 64
+    k_fold_train_and_pred(k, train_features, train_labels, epoch_num, lr, weight_decay, batch_size, test_features, test_data)

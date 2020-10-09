@@ -50,12 +50,12 @@ def dropout_mlp(X, is_training=True):
     return torch.matmul(H2, W3) + b3
 
 
-class DropoutNet(nn.Module):
+class DropoutMLP(nn.Module):
     """
     A MLP with two hidden layers and dropout.
     """
     def __init__(self, num_inputs, num_hiddens, num_hiddens1, num_outputs, dropout_prob1, dropout_prob2):
-        super(DropoutNet, self).__init__()
+        super(DropoutMLP, self).__init__()
         self.hiddens = nn.Sequential(
             metrics.FlattenLayer(),
 
@@ -113,9 +113,9 @@ if __name__ == '__main__':
     metrics.universal_train(dropout_mlp, train_iter, test_iter, loss, epoch_num, batch_size, params=params, lr=lr,
                             optimizer=None)
 
-    # 4. test DropoutNet
-    print('test DropoutNet')
-    net = DropoutNet(num_inputs, num_hiddens, num_hiddens1, num_outputs, dropout_prob1, dropout_prob2)
+    # 4. test DropoutMLP
+    print('test DropoutMLP')
+    net = DropoutMLP(num_inputs, num_hiddens, num_hiddens1, num_outputs, dropout_prob1, dropout_prob2)
     optimizer = optim.SGD(net.parameters(), lr=0.1)
     metrics.universal_train(net, train_iter, test_iter, loss, epoch_num, batch_size, None, None,
                             optimizer=optimizer)

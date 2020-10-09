@@ -10,7 +10,7 @@ from torch import nn, optim
 
 def linear_reg(X, W, b):
     """
-    X and W are 2-h_exp torch tensor, b is a 1-h_exp torch tensor. Broadcast is triggered automatically.
+    X and W are 2-dim torch tensor, b is a 1-dim torch tensor. Broadcast is triggered automatically.
     X is with size (sample_num, in_feature), W is with size (in_feature, 1), b is with size (1).
     """
     return torch.mm(X, W) + b
@@ -18,7 +18,6 @@ def linear_reg(X, W, b):
 
 def train_linear_reg(features, labels, W, b, epoch_num, lr, batch_size):
     for epoch in range(epoch_num):
-        train_ls_sum, train_acc_sum, n = 0., 0., 0
         for X, y in tools.get_data_batch(batch_size, features, labels):
             # (X, y) is a mini batch of data, where sample_num = batch_size
             y_hat = linear_reg(X, W, b)
@@ -39,7 +38,7 @@ def train_linear_reg(features, labels, W, b, epoch_num, lr, batch_size):
 
 class LinearNet(nn.Module):
     """
-    The linear net defined with torch. It is the same as linear_reg().
+    The linear net, defined with torch. It is the same as linear_reg().
     """
     def __init__(self, in_feature):
         super(LinearNet, self).__init__()
@@ -51,6 +50,7 @@ class LinearNet(nn.Module):
 
 def train_linear_net(features, labels, net, loss, optimizer, epoch_num, batch_size):
     for epoch in range(epoch_num):
+        ls = None
         for X, y in tools.get_data_batch_torch(batch_size, features, labels):
             ls = loss(net(X), y.view(-1, 1))
             optimizer.zero_grad()
