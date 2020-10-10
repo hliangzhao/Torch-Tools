@@ -3,7 +3,9 @@ This module defines the loss, accuracy, activate functions, training and test pr
 """
 import torch
 from torch import nn
+import torch.nn.functional as F
 import tools
+import time
 
 
 def squared_loss(y_hat, y):
@@ -32,25 +34,29 @@ def get_classify_accuracy(y_hat, y):
     return (y_hat.argmax(dim=1) == y).float().mean().item()
 
 
-def evaluate_classify_accuracy(data_iter, net):
+def evaluate_classify_accuracy(data_iter, net, device=None):
     """
     Calculate the accuracy over the data_iter in batch way for classification task.
     :return: a scalar of accuracy for given samples
     """
+    if device is None and isinstance(net, nn.Module):
+        # use the device of net's device
+        device = list(net.parameters())[0].device
     acc_sum, n = 0., 0
-    for X, y in data_iter:
-        if isinstance(net, nn.Module):
-            # change to eval mode for closing dropout
-            net.eval()
-            acc_sum += (net(X).argmax(dim=1) == y).float().sum().item()
-            net.train()
-        else:
-            if 'is_training' in net.__code__.co_varnames:
-                # if net has para 'is_training'
-                acc_sum += (net(X, False).argmax(dim=1) == y).float().sum().item()
+    with torch.no_grad():
+        for X, y in data_iter:
+            if isinstance(net, nn.Module):
+                # change to eval mode for closing dropout
+                net.eval()
+                acc_sum += (net(X.to(device)).argmax(dim=1) == y.to(device)).float().sum().cpu().item()
+                net.train()
             else:
-                acc_sum += (net(X).argmax(dim=1) == y).float().sum().item()
-        n += y.shape[0]
+                if 'is_training' in net.__code__.co_varnames:
+                    # if net has para 'is_training'
+                    acc_sum += (net(X, False).argmax(dim=1) == y).float().sum().item()
+                else:
+                    acc_sum += (net(X).argmax(dim=1) == y).float().sum().item()
+            n += y.shape[0]
     return acc_sum / n
 
 
@@ -143,6 +149,33 @@ def universal_train(net, train_iter, test_iter, loss, num_epochs, batch_size, pa
               % (epoch + 1, train_ls_sum / n, train_acc_sum / n, test_acc))
 
 
+def cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs):
+    """
+    A universal training function for CNN and used for classification.
+    """
+    net = net.to(device)
+    print('training on', device)
+    loss = torch.nn.CrossEntropyLoss()
+    for epoch in range(num_epochs):
+        train_ls_sum, train_acc_sum, n, batch_count, start = 0., 0., 0, 0, time.time()
+        for X, y in train_iter:
+            X = X.to(device)
+            y = y.to(device)
+            y_hat = net(X)
+            ls = loss(y_hat, y)
+            optimizer.zero_grad()
+            ls.backward()
+            optimizer.step()
+            train_ls_sum += ls.cpu().item()
+            train_acc_sum += (y_hat.argmax(dim=1) == y).sum().cpu().item()
+            n += y.shape[0]
+            batch_count += 1
+            print('batch %d finished' % batch_count)
+        test_acc = evaluate_classify_accuracy(test_iter, net)
+        print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.1f sec'
+              % (epoch + 1, train_ls_sum / batch_count, train_acc_sum / n, test_acc, time.time() - start))
+
+
 def test_classify_mnist(test_iter, net, save_path):
     """
     Use Fashion-MNIST dataset to test the classifier's effect.
@@ -196,11 +229,18 @@ def corr2d_multi_in_multi_out(X, K):
 def corr2d_1x1(X, K):
     """
     The 1x1 conv layer.
+    This layer is similar to fully connected layer.
     :param X: the 3-dim input feature (in_channel, height, width)
-    :param K: the 4-dim filter (in_channel, out_channel, kernel_height, kernel_width)
+    :param K: the 4-dim filter (in_channel, out_channel, 1, 1)
     :return: the output feature (out_channel, out_height, out_width)
     """
-    pass
+    assert tuple(K.shape[2:]) == (1, 1)
+    c_i, h, w = X.shape
+    c_o = K.shape[0]
+    X = X.view(c_i, h * w)
+    K = K.view(c_o, c_i)
+    Y = torch.mm(K, X)
+    return Y.view(c_o, h, w)
 
 
 class Conv2D(nn.Module):
@@ -215,7 +255,7 @@ class Conv2D(nn.Module):
 
 def train_kernel2D(X, Y, epoch_num, lr, conv_layer):
     """
-    Learn kernel from data.
+    Learn filter from data.
     """
     for i in range(epoch_num):
         Y_hat = conv_layer(X)
@@ -242,23 +282,55 @@ def comp_conv2d(conv_layer, X):
     return Y.view(Y.shape[2:])
 
 
+def pool2d(X, pool_size, mode='max'):
+    """
+    The (max or avg) pooling layer.
+    :param X: the 2-dim input feature (height, width)
+    :param pool_size: the tuple (p_h, p_w)
+    :param mode: 'max' or 'avg'
+    :return: the output feature (out_height, out_width)
+    """
+    X = X.float()
+    p_h, p_w = pool_size
+    Y = torch.zeros(X.shape[0] - p_h + 1, X.shape[1] - p_w + 1)
+    for i in range(Y.shape[0]):
+        for j in range(Y.shape[1]):
+            if mode == 'max':
+                Y[i, j] = X[i: i + p_h, j: j + p_w].max()
+            elif mode == 'avg':
+                Y[i, j] = X[i: i + p_h, j: j + p_w].mean()
+    return Y
+
+
+class GlobalAvgPool2d(nn.Module):
+    """
+    Calculate the average value of each channel as one output.
+    The output units num is the number of in_channels.
+    """
+    def __init__(self):
+        super(GlobalAvgPool2d, self).__init__()
+
+    def forward(self, X):
+        return F.avg_pool2d(X, kernel_size=X.size()[2:])
+
+
 if __name__ == '__main__':
-    # # test Conv2D
-    # X = torch.ones(6, 8)
-    # X[:, 2: 6] = 0
-    # K = torch.tensor([[-1, 1]])
-    # Y = corr2d(X, K)
-    # conv2d = Conv2D((1, 2))
-    # train_kernel2D(X, Y, epoch_num=30, lr=0.01, conv_layer=conv2d)
-    # print(conv2d.weight.data, conv2d.bias.data)
-    #
-    # # test get_conv2d_out_size
-    # X = torch.randn(8, 8)
-    # conv2d = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=3, padding=1, stride=2)
-    # print(comp_conv2d(conv2d, X).shape)
-    #
-    # conv2d = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=(5, 3), padding=(2, 1), stride=1)
-    # print(comp_conv2d(conv2d, X).shape)
+    # test Conv2D
+    X = torch.ones(6, 8)
+    X[:, 2: 6] = 0
+    K = torch.tensor([[-1, 1]])
+    Y = corr2d(X, K)
+    conv2d = Conv2D((1, 2))
+    train_kernel2D(X, Y, epoch_num=30, lr=0.01, conv_layer=conv2d)
+    print(conv2d.weight.data, conv2d.bias.data)
+
+    # test get_conv2d_out_size
+    X = torch.randn(8, 8)
+    conv2d = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=3, padding=1, stride=2)
+    print(comp_conv2d(conv2d, X).shape)
+
+    conv2d = nn.Conv2d(in_channels=1, out_channels=1, kernel_size=(5, 3), padding=(2, 1), stride=1)
+    print(comp_conv2d(conv2d, X).shape)
 
     # test corr2d_multi_in
     X = torch.tensor([[[0, 1, 2], [3, 4, 5], [6, 7, 8]],
@@ -270,3 +342,17 @@ if __name__ == '__main__':
     # test corr2d_multi_in_multi_out
     K = torch.stack([K, K + 1, K + 2])
     print(X.shape, K.shape, corr2d_multi_in_multi_out(X, K).shape)
+
+    # test nn.MaxPool2d
+    X = torch.arange(16, dtype=torch.float).view(1, 1, 4, 4)
+    pool2d_layer = nn.MaxPool2d(3)
+    print(pool2d_layer(X))
+    pool2d_layer = nn.MaxPool2d(3, padding=1, stride=2)
+    print(pool2d_layer(X))
+    pool2d_layer = nn.MaxPool2d((2, 4), padding=(1, 2), stride=(2, 3))
+    print(pool2d_layer(X))
+
+    # multi-in_channel
+    X = torch.cat((X, X + 1), dim=1)
+    pool2d_layer = nn.MaxPool2d((2, 4), padding=(1, 2), stride=(2, 3))
+    print(pool2d_layer(X))
