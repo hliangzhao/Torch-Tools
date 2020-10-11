@@ -298,6 +298,9 @@ class BatchNormalizeLayer(nn.Module):
 
 
 def BatchNormalizedLeNet():
+    """
+    LeNet-5 with batch normalization.
+    """
     return nn.Sequential(
         nn.Conv2d(1, 6, 5),
         BatchNormalizeLayer(num_features=6, num_dims=4),
@@ -319,6 +322,9 @@ def BatchNormalizedLeNet():
 
 
 def BatchNormalizedLeNet1():
+    """
+    LeNet-5 with batch normalization.
+    """
     return nn.Sequential(
         nn.Conv2d(1, 6, 5),
         # num_dims is not required
@@ -340,6 +346,83 @@ def BatchNormalizedLeNet1():
     )
 
 
+class Residual(nn.Module):
+    """
+    A single residual module.
+    """
+    def __init__(self, in_channels, out_channels, use_1x1conv=False, stride=1):
+        """
+        The default Residual module in ResNet is similar to vgg_block.
+        :param in_channels:
+        :param out_channels:
+        :param use_1x1conv: if you want to change channels num
+        :param stride: (h, w) / stride is the out_h and out_w, respectively
+        """
+        super(Residual, self).__init__()
+        self.conv1 = nn.Conv2d(in_channels, out_channels, kernel_size=3, stride=stride, padding=1)
+        self.bn1 = nn.BatchNorm2d(out_channels)
+
+        self.conv2 = nn.Conv2d(out_channels, out_channels, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm2d(out_channels)
+
+        if use_1x1conv:
+            self.conv3 = nn.Conv2d(in_channels, out_channels, kernel_size=1, stride=stride)
+        else:
+            self.conv3 = None
+
+    def forward(self, X):
+        Y = F.relu(self.bn1(self.conv1(X)))
+        Y = self.bn2(self.conv2(Y))
+        if self.conv3:
+            # use 1x1 conv layer to change X's channels
+            X = self.conv3(X)
+        return F.relu(Y + X)
+
+
+def resnet_block(in_channels, out_channels, num_residuals, first_block=False):
+    """
+    A residual block is a composition of residual modules.
+    :param in_channels:
+    :param out_channels:
+    :param num_residuals: the number of residual modules
+    :param first_block: if this is the first residual block, channels, h, and w do not change.
+    Otherwise, channels x 2, h / 2, w / 2.
+    :return:
+    """
+    if first_block:
+        assert in_channels == out_channels
+    blocks = []
+    for i in range(num_residuals):
+        if i == 0 and not first_block:
+            # it is the first residual module of each residual block to change tensor size
+            blocks.append(Residual(in_channels, out_channels, use_1x1conv=True, stride=2))
+        else:
+            blocks.append(Residual(out_channels, out_channels))
+    # add * before blocks because we input it as a tuple (see model_construct.MySequential())
+    return nn.Sequential(*blocks)
+
+
+def ResNet18():
+    # block 1 is similar to GooLeNet's (h, w) --> (h/2, w/2)
+    # input tensor (batch_size, 1, 224, 224)
+    # 1
+    net = nn.Sequential(
+        nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3),     # (batch_size, 64, 112, 112)
+        nn.BatchNorm2d(64),
+        nn.ReLU(),
+        nn.MaxPool2d(kernel_size=3, stride=2, padding=1)          # (batch_size, 64, 56, 56)
+    )
+    # 4 x 2 x 2
+    net.add_module('resnet_block_1', resnet_block(64, 64, 2, first_block=True))       # (batch_size, 64, 56, 56)
+    net.add_module('resnet_block_2', resnet_block(64, 128, 2))                        # (batch_size, 128, 28, 28)
+    net.add_module('resnet_block_3', resnet_block(128, 256, 2))                       # (batch_size, 128, 14, 14)
+    net.add_module('resnet_block_4', resnet_block(256, 512, 2))                       # (batch_size, 128, 7, 7)
+    # 1
+    net.add_module('global_avg_pool', metrics.GlobalAvgPool2d())                      # (batch_size, 128, 1, 1)
+    net.add_module('fc', nn.Sequential(metrics.FlattenLayer(), nn.Linear(512, 10)))   # (batch_size, 128) ---> (batch_size, 10)
+    return net
+
+
 if __name__ == '__main__':
     # test LeNet-5
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data')
@@ -355,7 +438,7 @@ if __name__ == '__main__':
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)
 
-    # test vgg
+    # test VGG-11
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data', resize=224)
     conv_arch = ((1, 1, 64), (1, 64, 128), (2, 128, 256), (2, 256, 512), (2, 512, 512))
     # 224 / 2^5 = 7
@@ -398,3 +481,14 @@ if __name__ == '__main__':
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=5)
     print(BatchNormalizedLeNet1())
+
+    # test ResNet-18
+    train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data', resize=96)
+    net = ResNet18()
+    print(net)
+    X = torch.rand(1, 1, 244, 244)
+    for name, block in net.named_children():
+        X = block(X)
+        print(name, 'output shape: ', X.shape)
+    optimizer = optim.Adam(net.parameters(), lr=0.001)
+    # metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)
