@@ -423,6 +423,82 @@ def ResNet18():
     return net
 
 
+def conv_block(in_channels, out_channels):
+    return nn.Sequential(
+        nn.BatchNorm2d(in_channels),
+        nn.ReLU(),
+        nn.Conv2d(in_channels, out_channels, kernel_size=3, padding=1)
+    )
+
+
+class DenseBlock(nn.Module):
+    """
+    DenseBlock is the composition of conv_block. The output of each blk is cat on the dim of channels.
+    """
+    def __init__(self, num_convs, in_channels, out_channels):
+        super(DenseBlock, self).__init__()
+        net = []
+        for i in range(num_convs):
+            in_c = in_channels + i * out_channels
+            net.append(conv_block(in_c, out_channels))
+        self.net = nn.ModuleList(net)
+        self.out_channels = in_channels + num_convs * out_channels
+
+    def forward(self, X):
+        for blk in self.net:
+            Y = blk(X)
+            X = torch.cat((X, Y), dim=1)
+        return X
+
+
+def transition_block(in_channels, out_channels):
+    """
+    Transition block is used to decrease the channels of input features by a 1x1 conv layer.
+    The h and w are also reduced by half to decrease complexity.
+    :param in_channels:
+    :param out_channels: < in_channels
+    :return:
+    """
+    return nn.Sequential(
+        nn.BatchNorm2d(in_channels),
+        nn.ReLU(),
+        nn.Conv2d(in_channels, out_channels, kernel_size=1),
+        nn.AvgPool2d(kernel_size=2, stride=2)
+    )
+
+
+def DenseNet18():
+    # block 1 is similar to ResNet's (h, w) --> (h/2, w/2)
+    # input tensor (batch_size, 1, 96, 96)
+    # 1
+    net = nn.Sequential(
+        nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3),  # (batch_size, 64, 48, 48)
+        nn.BatchNorm2d(64),
+        nn.ReLU(),
+        nn.MaxPool2d(kernel_size=3, stride=2, padding=1)  # (batch_size, 64, 24, 24)
+    )
+    # 4 dense block and one transition block
+    # (64, 24, 24) ---> (192, 24, 24) ---> (96, 12, 12)
+    # (96, 12, 12) ---> (224, 12, 12) ---> (112, 6, 6)
+    # (112, 6, 6) ---> (240, 6, 6) ---> (120, 3, 3)
+    # (120, 3, 3) ---> (248, 3, 3)
+    num_channels, growth_rate = 64, 32   # after each dense block, the channel num increases 32 * 4
+    num_convs_dense = [4, 4, 4, 4]
+    for i, num_convs in enumerate(num_convs_dense):
+        dense_blk = DenseBlock(num_convs, num_channels, growth_rate)
+        net.add_module('dense_block_%d' % (i + 1), dense_blk)
+        num_channels = dense_blk.out_channels
+        if i != len(num_convs_dense) - 1:
+            # after each transition block, the channel num is reduced by half
+            net.add_module('transition_block_%d' % (i + 1), transition_block(num_channels, num_channels // 2))
+            num_channels = num_channels // 2
+    net.add_module('batch_norm', nn.BatchNorm2d(num_channels))
+    net.add_module('relu', nn.ReLU())
+    net.add_module('global_avg_pool', metrics.GlobalAvgPool2d())                                    # (batch_size, 248, 1, 1)
+    net.add_module('fc', nn.Sequential(metrics.FlattenLayer(), nn.Linear(num_channels, 10)))        # (batch_size, 248) ---> (batch_size, 10)
+    return net
+
+
 if __name__ == '__main__':
     # test LeNet-5
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data')
@@ -491,4 +567,15 @@ if __name__ == '__main__':
         X = block(X)
         print(name, 'output shape: ', X.shape)
     optimizer = optim.Adam(net.parameters(), lr=0.001)
-    # metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)
+    metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)
+
+    # test DenseNet-18
+    train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data', resize=96)
+    net = DenseNet18()
+    print(net)
+    X = torch.rand(1, 1, 96, 96)
+    for name, block in net.named_children():
+        X = block(X)
+        print(name, 'output shape: ', X.shape)
+    optimizer = optim.Adam(net.parameters(), lr=0.001)
+    metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)

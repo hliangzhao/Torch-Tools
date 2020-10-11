@@ -9,7 +9,7 @@ Package ``linear``:
 
 Package ``nn``:
 * ``nn.mlp``: implement the Multi-Layer Perceptron (with and without ``nn.Module``)
-* ``nn.cnn``: implement popular CNNs such as LeNet-5, AlexNet, VGG-11, GooLeNet, ResNet-18, DenseNet, etc.
+* ``nn.cnn``: implement popular CNNs such as LeNet-5, AlexNet, VGG-11, GoogLeNet, ResNet-18, DenseNet, etc.
 * ``nn.rnn``: *work-in-progress*
 * ``nn.model_construct``: concludes typical methods for deep model's construction
 
