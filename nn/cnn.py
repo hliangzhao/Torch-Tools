@@ -227,6 +227,119 @@ def GoogLeNet():
     )
 
 
+def batch_normalize(is_training, X, gamma, beta, moving_mean, moving_var, eps, momentum):
+    """
+    Batch normalization for input features.
+    :param is_training: training mode or eval mode
+    :param X: input feature
+    :param gamma: the scale parameter
+    :param beta: the shift parameter
+    :param moving_mean: moving mean for inference
+    :param moving_var: moving variance for inference
+    :param eps: a small number adding on var
+    :param momentum: the param for moving mean and moving var's update
+    :return: the normalized out_features
+    """
+    if not is_training:
+        # if in eval mode, use the saved moving_mean and moving_var
+        X_hat = (X - moving_mean) / torch.sqrt(moving_var + eps)
+    else:
+        # X should be a 2-dim tensor (batch_size, feature_num) [for linear layer]
+        # or 4-dim tensor (batch_size, channel_num, h, w) [for conv layer]
+        assert len(X.shape) in (2, 4)
+        if len(X.shape) == 2:
+            mean = X.mean(dim=0)
+            # broadcast automatically
+            var = ((X - mean) ** 2).mean(dim=0)
+        else:
+            # calculate the mean and var on the channel dim
+            # keep X' shape!
+            mean = X.mean(dim=0, keepdim=True).mean(dim=2, keepdim=True).mean(dim=3, keepdim=True)
+            var = ((X - mean) ** 2).mean(dim=0, keepdim=True).mean(dim=2, keepdim=True).mean(dim=3, keepdim=True)
+        X_hat = (X - mean) / torch.sqrt(var + eps)
+
+        # update moving_mean and moving_var
+        moving_mean = momentum * moving_mean + (1.0 - momentum) * mean
+        moving_var = momentum * moving_var + (1.0 - momentum) * var
+    Y = gamma * X_hat + beta
+    return Y, moving_mean, moving_var
+
+
+class BatchNormalizeLayer(nn.Module):
+    def __init__(self, num_features, num_dims):
+        """
+        :param num_features: for conv layer, num_features is the channel_num; for linear layer, num_features is the unit num
+        :param num_dims: 2 or 4
+        """
+        super(BatchNormalizeLayer, self).__init__()
+        shape = None
+        if num_dims == 2:
+            shape = (1, num_features)
+        elif num_dims == 4:
+            shape = (1, num_features, 1, 1)
+
+        # gamma is initialized as 1
+        self.gamma = nn.Parameter(torch.ones(shape), requires_grad=True)
+        # beta is initialized as 0
+        self.beta = nn.Parameter(torch.zeros(shape), requires_grad=True)
+
+        self.moving_mean = torch.zeros(shape)
+        self.moving_var = torch.zeros(shape)
+
+    def forward(self, X):
+        if self.moving_mean.device != X.device:
+            # move the cpu vars onto the device
+            self.moving_mean = self.moving_mean.to(X.device)
+            self.moving_var = self.moving_var.to(X.device)
+        # self.training is False if called .eval()
+        Y, self.moving_mean, self.moving_var = batch_normalize(self.training, X, self.gamma, self.beta,
+                                                               self.moving_mean, self.moving_var, eps=1e-5, momentum=0.9)
+        return Y
+
+
+def BatchNormalizedLeNet():
+    return nn.Sequential(
+        nn.Conv2d(1, 6, 5),
+        BatchNormalizeLayer(num_features=6, num_dims=4),
+        nn.Sigmoid(),
+        nn.MaxPool2d(2),
+        nn.Conv2d(6, 16, 5),
+        BatchNormalizeLayer(num_features=16, num_dims=4),
+        nn.Sigmoid(),
+        nn.MaxPool2d(2),
+        metrics.FlattenLayer(),
+        nn.Linear(16 * 4 * 4, 120),
+        BatchNormalizeLayer(num_features=120, num_dims=2),
+        nn.Sigmoid(),
+        nn.Linear(120, 84),
+        BatchNormalizeLayer(num_features=84, num_dims=2),
+        nn.Sigmoid(),
+        nn.Linear(84, 10)
+    )
+
+
+def BatchNormalizedLeNet1():
+    return nn.Sequential(
+        nn.Conv2d(1, 6, 5),
+        # num_dims is not required
+        nn.BatchNorm2d(num_features=6),
+        nn.Sigmoid(),
+        nn.MaxPool2d(2),
+        nn.Conv2d(6, 16, 5),
+        nn.BatchNorm2d(num_features=16),
+        nn.Sigmoid(),
+        nn.MaxPool2d(2),
+        metrics.FlattenLayer(),
+        nn.Linear(16 * 4 * 4, 120),
+        nn.BatchNorm2d(num_features=120),
+        nn.Sigmoid(),
+        nn.Linear(120, 84),
+        nn.BatchNorm2d(num_features=84),
+        nn.Sigmoid(),
+        nn.Linear(84, 10)
+    )
+
+
 if __name__ == '__main__':
     # test LeNet-5
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data')
@@ -278,3 +391,10 @@ if __name__ == '__main__':
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)
 
+    # test batch normalization
+    train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data')
+    net = BatchNormalizedLeNet()
+    print(net)
+    optimizer = optim.Adam(net.parameters(), lr=0.001)
+    metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=5)
+    print(BatchNormalizedLeNet1())

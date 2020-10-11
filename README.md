@@ -17,6 +17,8 @@ Module ``nn``:
 Module ``reinforce``: planning to implement value-based and policy-based RL algorithms, such as 
 Q-learning, DQN, SARSA, REINFORCE, etc.
 
+Module ``eval``: tests under-fitting, over-fitting, and regularization by regression.
+
 Module ``metrics`` implement typical operations in deep learning, such as the calculation of 
 MSE, cross-entropy error, mini-batch gradient descent, drop out, correlation computation, etc.
 

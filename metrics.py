@@ -159,8 +159,7 @@ def cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs):
     for epoch in range(num_epochs):
         train_ls_sum, train_acc_sum, n, batch_count, start = 0., 0., 0, 0, time.time()
         for X, y in train_iter:
-            X = X.to(device)
-            y = y.to(device)
+            X, y = X.to(device), y.to(device)
             y_hat = net(X)
             ls = loss(y_hat, y)
             optimizer.zero_grad()
@@ -170,7 +169,7 @@ def cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs):
             train_acc_sum += (y_hat.argmax(dim=1) == y).sum().cpu().item()
             n += y.shape[0]
             batch_count += 1
-            print('batch %d finished' % batch_count)
+            # print('batch %d finished' % batch_count)
         test_acc = evaluate_classify_accuracy(test_iter, net)
         print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.1f sec'
               % (epoch + 1, train_ls_sum / batch_count, train_acc_sum / n, test_acc, time.time() - start))
