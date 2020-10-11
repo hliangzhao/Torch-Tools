@@ -4,8 +4,8 @@ https://tangshusen.me/Dive-into-DL-PyTorch.
 
 Package ``linear``:
 * ``linear.regression``: implement the linear regression (with and without ``nn.Module``)
-* ``linear.softmax``: implement the softmax classification(with and without ``nn.Module``)
-* ``linear.svm``: *work-in-progress*
+* ``linear.softmax``: implement the softmax classification (with and without ``nn.Module``)
+* ``linear.svm``: implement the hinge loss and SVM classifier with ``nn.Module``
 
 Package ``nn``:
 * ``nn.mlp``: implement the Multi-Layer Perceptron (with and without ``nn.Module``)

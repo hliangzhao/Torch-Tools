@@ -44,6 +44,7 @@ def load_fashion_MNIST(batch_size, resize=None, root='data', num_workers=4):
     if resize:
         trans.append(torchvision.transforms.Resize(size=resize))
     trans.append(torchvision.transforms.ToTensor())
+    trans.append(torchvision.transforms.Normalize((0.5,), (0.5,)))
     # transform is the composition of operates: resize first, and then transform it to tensor
     transform = torchvision.transforms.Compose(trans)
 
