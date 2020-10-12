@@ -1,5 +1,5 @@
 """
-This module defines popular CNN models.
+This module implements popular CNN models.
 """
 import torch
 import tools

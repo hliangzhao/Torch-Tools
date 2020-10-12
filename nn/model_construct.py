@@ -166,7 +166,7 @@ if __name__ == '__main__':
     # test ModuleDict
     net = nn.ModuleDict({
         'linear': nn.Linear(784, 256),
-        'act': nn.ReLU(),
+        'action': nn.ReLU(),
     })
     net['output'] = nn.Linear(256, 10)
     print(net)

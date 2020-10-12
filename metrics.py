@@ -26,6 +26,21 @@ def cross_entropy_loss(y_hat, y):
     return -torch.log(y_hat.gather(1, y.view(-1, 1)))
 
 
+def hinge_loss(y_hat, y, max_margin=1.):
+    """
+    hinge_loss = (\sum_{i=1}^N \max (0, \sum_{c \neq y} (y_hat_{i,c} - y_hat_i[y] + delta) ) ) / N
+    :param y_hat: of size (batch_size, num_classes)
+    :param y: of size (batch_size, 1) or (batch_size)
+    :param max_margin: 1 in default
+    :return: the hinge loss
+    """
+    y = y.view(-1)
+    num_samples = len(y)
+    corrects = y_hat[range(num_samples), y].unsqueeze(dim=0).T
+    margins = y_hat - corrects + max_margin
+    return torch.mean(torch.sum(torch.max(margins, other=torch.tensor(0.)), dim=1) - 1.)
+
+
 def get_classify_accuracy(y_hat, y):
     """
     Get the accuracy of given samples, where y_hat is of size (sample_num, label_num), y is of size (sample_num, 1).

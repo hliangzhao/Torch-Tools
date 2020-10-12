@@ -1,5 +1,6 @@
 """
-This module implements a SVM for multi-label classification, trained by Fashion-MNIST.
+This module implements a SVM for multi-label classification, trained by Fashion-MNIST,
+and a SVM for generated 2-dim features.
 """
 import torch
 import tools
@@ -9,30 +10,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.datasets.samples_generator import make_blobs
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-
-
-def hinge_loss(y_hat, y, max_margin=1.):
-    """
-    hinge_loss = (\sum_{i=1}^N \max (0, \sum_{c \neq y} (y_hat_{i,c} - y_hat_i[y] + delta) ) ) / N
-    :param y_hat: of size (batch_size, num_classes)
-    :param y: of size (batch_size, 1) or (batch_size)
-    :param max_margin: 1 in default
-    :return: the hinge loss
-    """
-    y = y.view(-1)
-    num_samples = len(y)
-    corrects = y_hat[range(num_samples), y].unsqueeze(dim=0).T
-    margins = y_hat - corrects + max_margin
-    return torch.mean(torch.sum(torch.max(margins, other=torch.tensor(0.)), dim=1) - 1.)
-
 
 def svm_loss(y_hat, y, max_margin=1., lambd=2e-3):
     """
     The hinge loss adding on the l2-norm.
     """
     # notice that the net[1].weight is defined outside
-    return hinge_loss(y_hat, y, max_margin) + lambd * metrics.l2_penalty(net[1].weight)
+    return metrics.hinge_loss(y_hat, y, max_margin) + lambd * metrics.l2_penalty(net[1].weight)
 
 
 def SVM():
@@ -43,14 +27,14 @@ def SVM():
     )
 
 
-def train_2dim_svm(X, Y, net):
+def train_2dim_svm(X, Y, net, epoch_num=5):
     """
     Use 2-dim feature as the input of SVM to visualize its effect.
     """
     X, Y = torch.FloatTensor(X), torch.FloatTensor(Y)
     num_samples = len(Y)
     optimizer = optim.SGD(net.parameters(), lr=0.1)
-    for epoch in range(5):
+    for epoch in range(epoch_num):
         perm = torch.randperm(num_samples)
         train_ls = 0
         for i in range(num_samples):

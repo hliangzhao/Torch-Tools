@@ -3,12 +3,12 @@ This repos concludes commonly used deep learning models. The basic models are ba
 https://tangshusen.me/Dive-into-DL-PyTorch.
 
 Package ``linear``:
-* ``linear.regression``: implement the linear regression (with and without ``nn.Module``)
-* ``linear.softmax``: implement the softmax classification (with and without ``nn.Module``)
-* ``linear.svm``: implement the hinge loss and SVM classifier with ``nn.Module``
+* ``linear.regression``: implement the linear regression (with and without ``torch.nn.Module``)
+* ``linear.softmax``: implement the softmax classification (with and without ``torch.nn.Module``)
+* ``linear.svm``: implement the hinge loss and SVM classifier with ``torch.nn.Module``
 
 Package ``nn``:
-* ``nn.mlp``: implement the Multi-Layer Perceptron (with and without ``nn.Module``)
+* ``nn.mlp``: implement the Multi-Layer Perceptron (with and without ``torch.nn.Module``)
 * ``nn.cnn``: implement popular CNNs such as LeNet-5, AlexNet, VGG-11, GoogLeNet, ResNet-18, DenseNet, etc.
 * ``nn.rnn``: *work-in-progress*
 * ``nn.model_construct``: concludes typical methods for deep model's construction
