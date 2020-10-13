@@ -17,6 +17,8 @@ A typical example:
          [17, 18, 27, 23],
          [18, 21, 25, 15],
          [22, 29, 28, 21]]
+
+    Author: hliangzhao@zju.edu.cn (http://hliangzhao.me)
 """
 import numpy as np
 import random
@@ -69,6 +71,7 @@ class Env:
     def get_feature(self, job_id, job_progress):
         """
         Here feature is one kind of encoding of state of the given job.
+        This encoding strongly effects the final results.
         """
         machine_id = self.jobs_process_order[job_id, job_progress]
 
@@ -142,10 +145,12 @@ class Env:
                     # job finished
                     job_progresses[job_id] = -1
             if job_progresses[action] == -1:
-                # has to choose a new job, which means this action is not a good action
+                # this job is been finished, but the agent still choose this job
+                # which means this action is strongly not recommended!
                 done = True
                 can_choose = [[i, job_progresses[i]] for i in range(self.job_num) if job_progresses[i] != -1]
-                # if can_choose is not None?
+                # can_choose can never be empty because step() is called job_num * machine_num times,
+                # if one job is chosen after that it is finished, then there must exist a job who is not finished
                 action = can_choose[0]
             else:
                 action = [action, job_progresses[action]]
@@ -170,7 +175,7 @@ class Env:
                 color += color_arr[random.randint(0, 14)]
             colorbox.append('#' + color)
 
-        fig = plt.figure(figsize=(7, 4))
+        fig = plt.figure(figsize=(10, 6))
         for i in range(self.machine_num):
             for j in range(self.job_num):
                 m_point1 = self.starttime[i, j]

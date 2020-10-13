@@ -1,6 +1,7 @@
 """
 This module implements a SVM for multi-label classification, trained by Fashion-MNIST,
 and a SVM for generated 2-dim features.
+    Author: hliangzhao@zju.edu.cn (http://hliangzhao.me)
 """
 import torch
 import tools

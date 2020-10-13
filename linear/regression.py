@@ -1,5 +1,6 @@
 """
 This module defines the linear regression model.
+    Author: hliangzhao@zju.edu.cn (http://hliangzhao.me)
 """
 import torch
 import numpy as np

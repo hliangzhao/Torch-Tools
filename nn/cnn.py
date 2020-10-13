@@ -1,5 +1,6 @@
 """
 This module implements popular CNN models.
+    Author: hliangzhao@zju.edu.cn (http://hliangzhao.me)
 """
 import torch
 import tools
@@ -324,6 +325,7 @@ def BatchNormalizedLeNet():
 def BatchNormalizedLeNet1():
     """
     LeNet-5 with batch normalization.
+    The Batch Normalization is implemented by calling torch.nn.BatchNorm2d().
     """
     return nn.Sequential(
         nn.Conv2d(1, 6, 5),

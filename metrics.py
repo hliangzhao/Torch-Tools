@@ -1,5 +1,6 @@
 """
 This module defines the loss, accuracy, activate functions, training and test procedure.
+    Author: hliangzhao@zju.edu.cn (http://hliangzhao.me)
 """
 import torch
 from torch import nn

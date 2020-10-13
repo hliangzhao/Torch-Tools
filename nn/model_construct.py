@@ -1,5 +1,6 @@
 """
 This module lists typical methods for constructing deep neuron networks.
+    Author: hliangzhao@zju.edu.cn (http://hliangzhao.me)
 """
 import torch
 from torch import nn

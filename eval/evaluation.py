@@ -1,5 +1,6 @@
 """
 This module tests under-fitting, over-fitting, and regularization by a regression.
+    Author: hliangzhao@zju.edu.cn (http://hliangzhao.me)
 """
 import tools
 import metrics

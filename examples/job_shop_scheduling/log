@@ -1,0 +1,134 @@
+Episode: 0/10000, makespan: 171.0, success: 0/100, eps: 0.9
+actions: [0, 4, 4, 1, 1, 1, 3, 0, 3, 2, 4, 4]
+Episode: 0/10000, makespan: 202.0, success: 0/100, eps: 0.9
+actions: [4, 3, 3, 1, 3, 0, 1, 0, 2, 2, 3, 0, 0, 1, 2, 4, 4, 1]
+Episode: 0/10000, makespan: 222.0, success: 0/100, eps: 0.9
+actions: [3, 4, 0, 3, 0, 3, 1, 2, 2, 0, 1, 3, 1, 0, 1]
+Episode: 0/10000, makespan: 132.0, success: 0/100, eps: 0.9
+actions: [1, 1, 1, 0, 0, 3, 0, 4, 0]
+Episode: 0/10000, makespan: 146.0, success: 0/100, eps: 0.9
+actions: [2, 0, 0, 4, 1, 1, 1, 4, 4, 0, 4, 2]
+Episode: 0/10000, makespan: 224.0, success: 0/100, eps: 0.9
+actions: [2, 2, 3, 2, 3, 4, 4, 2, 3, 1, 3, 0, 0, 0, 4, 4]
+Episode: 0/10000, makespan: 222.0, success: 0/100, eps: 0.9
+actions: [3, 3, 3, 4, 3, 4, 2, 2, 1, 0, 0, 2, 2, 1, 4]
+Episode: 0/10000, makespan: 143.0, success: 0/100, eps: 0.9
+actions: [0, 0, 3, 3, 3, 1, 0, 3, 0]
+Episode: 0/10000, makespan: 134.0, success: 0/100, eps: 0.9
+actions: [3, 1, 3, 0, 1, 2, 0, 1, 2, 3, 2, 3]
+Episode: 0/10000, makespan: 181.0, success: 0/100, eps: 0.9
+actions: [1, 2, 2, 4, 0, 2, 0, 0, 3, 3, 3, 1, 0, 1, 3, 4, 1]
+Episode: 0/10000, makespan: 124.0, success: 0/100, eps: 0.9
+actions: [1, 1, 4, 1, 4, 0, 2, 4, 4, 3, 0]
+Episode: 0/10000, makespan: 161.0, success: 0/100, eps: 0.9
+actions: [3, 1, 0, 4, 3, 3, 2, 1, 1, 4, 4, 3, 4, 0]
+Episode: 0/10000, makespan: 147.0, success: 0/100, eps: 0.9
+actions: [0, 2, 4, 4, 1, 2, 0, 2, 3, 3, 3, 0, 0, 3, 2]
+Episode: 100/10000, makespan: 113.0, success: 0/100, eps: 0.58
+actions: [2, 0, 0, 0, 1, 0]
+Episode: 200/10000, makespan: 115.0, success: 0/100, eps: 0.35
+actions: [0, 2, 0, 1, 2, 0, 0, 4]
+Episode: 300/10000, makespan: 109.0, success: 0/100, eps: 0.21
+actions: [0, 3, 0, 2, 0, 0, 4]
+Episode: 400/10000, makespan: 121.0, success: 0/100, eps: 0.13
+actions: [1, 0, 0, 0, 0]
+Episode: 500/10000, makespan: 75.0, success: 0/100, eps: 0.079
+actions: [0, 0, 0, 0]
+Episode: 600/10000, makespan: 74.0, success: 0/100, eps: 0.048
+actions: [0, 0, 0, 0]
+Episode: 700/10000, makespan: 89.0, success: 0/100, eps: 0.029
+actions: [0, 0, 0, 0]
+Episode: 800/10000, makespan: 80.0, success: 0/100, eps: 0.018
+actions: [0, 0, 0, 0]
+Episode: 900/10000, makespan: 91.0, success: 0/100, eps: 0.011
+actions: [0, 0, 0, 0]
+Episode: 1000/10000, makespan: 78.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 0/10000, makespan: 106.0, success: 0/100, eps: 0.9
+actions: [3, 4, 4, 1, 4, 4]
+Episode: 0/10000, makespan: 222.0, success: 1/100, eps: 0.9
+actions: [1, 4, 1, 0, 0, 4, 3, 3, 0, 2, 2, 1, 3, 1, 2, 0, 2, 4, 4]
+Episode: 100/10000, makespan: 99.0, success: 1/100, eps: 0.58
+actions: [0, 2, 0, 4, 4, 0, 0, 1]
+Episode: 200/10000, makespan: 91.0, success: 0/100, eps: 0.35
+actions: [0, 2, 1, 2, 3, 0, 0, 1, 0, 2]
+Episode: 0/10000, makespan: 164.0, success: 0/100, eps: 0.9
+actions: [1, 1, 2, 3, 1, 2, 1, 0, 0, 4, 3, 2, 3, 2, 4]
+Episode: 100/10000, makespan: 140.0, success: 1/100, eps: 0.58
+actions: [1, 0, 0, 0, 0]
+Episode: 200/10000, makespan: 127.0, success: 0/100, eps: 0.35
+actions: [0, 0, 2, 0, 4, 0, 4]
+Episode: 300/10000, makespan: 124.0, success: 0/100, eps: 0.21
+actions: [0, 0, 0, 0]
+Episode: 400/10000, makespan: 108.0, success: 0/100, eps: 0.13
+actions: [0, 0, 0, 0]
+Episode: 500/10000, makespan: 92.0, success: 0/100, eps: 0.078
+actions: [1, 0, 0, 0, 0]
+Episode: 600/10000, makespan: 121.0, success: 0/100, eps: 0.047
+actions: [0, 0, 0, 0]
+Episode: 700/10000, makespan: 96.0, success: 0/100, eps: 0.029
+actions: [0, 0, 0, 0]
+Episode: 800/10000, makespan: 98.0, success: 0/100, eps: 0.017
+actions: [0, 0, 0, 0]
+Episode: 900/10000, makespan: 104.0, success: 0/100, eps: 0.011
+actions: [0, 0, 0, 0]
+Episode: 1000/10000, makespan: 107.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 1100/10000, makespan: 88.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 0/10000, makespan: 96.0, success: 0/100, eps: 0.9
+actions: [0, 4, 1, 1, 1, 0, 4, 1, 2]
+Episode: 100/10000, makespan: 105.0, success: 2/100, eps: 0.58
+actions: [0, 2, 3, 3, 3, 0, 0, 0]
+Episode: 200/10000, makespan: 136.0, success: 0/100, eps: 0.35
+actions: [3, 0, 0, 0, 1, 0, 3, 4]
+Episode: 300/10000, makespan: 93.0, success: 0/100, eps: 0.21
+actions: [0, 4, 0, 0, 0]
+Episode: 400/10000, makespan: 87.0, success: 0/100, eps: 0.13
+actions: [2, 1, 0, 0, 0, 0]
+Episode: 500/10000, makespan: 86.0, success: 0/100, eps: 0.078
+actions: [0, 0, 0, 0]
+Episode: 600/10000, makespan: 88.0, success: 0/100, eps: 0.047
+actions: [0, 2, 0, 0, 0]
+Episode: 700/10000, makespan: 89.0, success: 0/100, eps: 0.029
+actions: [0, 0, 0, 0]
+Episode: 800/10000, makespan: 68.0, success: 0/100, eps: 0.017
+actions: [0, 0, 0, 0]
+Episode: 900/10000, makespan: 109.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 1000/10000, makespan: 87.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 1100/10000, makespan: 125.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 1200/10000, makespan: 75.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 1300/10000, makespan: 78.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 1400/10000, makespan: 120.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 1500/10000, makespan: 93.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 1600/10000, makespan: 115.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 1700/10000, makespan: 97.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 1800/10000, makespan: 99.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 1900/10000, makespan: 90.0, success: 0/100, eps: 0.01
+actions: [0, 0, 0, 0]
+Episode: 0/10000, makespan: 165.0, success: 0/100, eps: 0.9
+actions: [3, 1, 0, 0, 0, 1, 4, 2, 1, 4, 0, 1, 4, 4, 3, 2]
+Episode: 100/10000, makespan: 89.0, success: 2/100, eps: 0.58
+actions: [4, 0, 0, 0, 4, 0]
+Episode: 200/10000, makespan: 137.0, success: 0/100, eps: 0.35
+actions: [2, 0, 0, 0, 1, 3, 0, 2, 3]
+Episode: 300/10000, makespan: 92.0, success: 0/100, eps: 0.21
+actions: [0, 0, 1, 0, 3, 0]
+Episode: 400/10000, makespan: 89.0, success: 0/100, eps: 0.13
+actions: [0, 4, 0, 0, 0]
+Episode: 0/10000, makespan: 168.0, success: 0/100, eps: 0.9
+actions: [4, 0, 3, 3, 1, 0, 4, 3, 0, 2, 3, 1, 2, 2, 4, 2]
+Episode: 0/10000, makespan: 167.0, success: 0/100, eps: 0.9
+actions: [2, 2, 3, 3, 2, 4, 0, 0, 1, 0, 4, 0]
+Episode: 100/10000, makespan: 98.0, success: 1/100, eps: 0.58
+actions: [3, 2, 4, 2, 3, 3, 4, 2, 3, 2]

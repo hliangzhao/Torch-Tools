@@ -1,5 +1,6 @@
 """
 Some utilities.
+    Author: hliangzhao@zju.edu.cn (http://hliangzhao.me)
 """
 import random
 import torch

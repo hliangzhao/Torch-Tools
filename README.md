@@ -1,5 +1,5 @@
 ## Torch Tools
-This repos concludes commonly used deep learning models. The basic models are based on the book 
+This repos concludes commonly used deep learning models. The implementation of *basic models* are based on the book 
 https://tangshusen.me/Dive-into-DL-PyTorch.
 
 Package ``linear``:
@@ -25,6 +25,7 @@ Module ``tools`` defines utilities. For example, get data in batch, function plo
 
 Package ``examples`` demonstrates how to use the ``Torch-Tools``. 
 * **House Price Prediction**: implement a linear regression model to predict the house price.
-* **Job Shop Scheduling (DQN)**: *work-in-progress*
+* **Job Shop Scheduling (DQN)**: implement a MLP with dropout layer and a model defined in figs/JSSP_model.png 
+to learn the actions.
 * **Offline Service Scheduling (DQN)**: *work-in-progress*
-* **Playing VIdeo Games (DQN)**: *work-in-progress*
+* **Playing Video Games (DQN)**: *work-in-progress*
