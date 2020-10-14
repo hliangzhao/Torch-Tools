@@ -329,6 +329,32 @@ class GlobalAvgPool2d(nn.Module):
         return F.avg_pool2d(X, kernel_size=X.size()[2:])
 
 
+def onehot_encoding(X, num_classes, dtype=torch.float32):
+    """
+    Get one-hot encoding of given input (features).
+    :param X: of size (batch_size)
+    :param num_classes:
+    :param dtype:
+    :return: of size (batch_size, num_classes)
+    """
+    X = X.long()
+    res = torch.zeros((X.shape[0], num_classes), dtype=dtype, device=X.device)
+    # for each row of res, fill 1 into the position remarked by X
+    # (take X as the indices of position for each sample in the batch)
+    res.scatter_(dim=1, index=X.view(-1, 1), value=1)
+    return res
+
+
+def to_onehot(X, num_classes):
+    """
+    Get one-hot encoding of given data batch X.
+    :param X: of size (batch_size, num_steps)
+    :param num_classes:
+    :return: several tensor of size (batch_size, num_classes), here 'several' is actually num_steps
+    """
+    return [onehot_encoding(X[:, i], num_classes) for i in range(X.shape[1])]
+
+
 if __name__ == '__main__':
     # test Conv2D
     X = torch.ones(6, 8)
@@ -367,7 +393,14 @@ if __name__ == '__main__':
     pool2d_layer = nn.MaxPool2d((2, 4), padding=(1, 2), stride=(2, 3))
     print(pool2d_layer(X))
 
-    # multi-in_channel
+    # test multi-in_channel
     X = torch.cat((X, X + 1), dim=1)
     pool2d_layer = nn.MaxPool2d((2, 4), padding=(1, 2), stride=(2, 3))
     print(pool2d_layer(X))
+
+    # test one-hot encoding
+    X = torch.tensor([0, 2])
+    print(onehot_encoding(X, num_classes=4))
+    X = torch.arange(10).view(2, 5)
+    inputs = to_onehot(X, num_classes=10)
+    print(X, '\n', len(inputs), '\n', inputs[0])

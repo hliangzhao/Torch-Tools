@@ -24,7 +24,7 @@ MSE, cross-entropy error, mini-batch gradient descent, drop out, correlation com
 Module ``tools`` defines utilities. For example, get data in batch, function plot, etc.
 
 Package ``examples`` demonstrates how to use the ``Torch-Tools``. 
-* **House Price Prediction**: implement a linear regression model to predict the house price.
+* **House Price Prediction (MLP)**: implement a linear regression model to predict the house price.
 * **Job Shop Scheduling (DQN)**: implement a MLP with dropout layer and a model defined in figs/JSSP_model.png 
 to learn the actions.
 * **Offline Service Scheduling (DQN)**: *work-in-progress*
