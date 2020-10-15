@@ -10,7 +10,7 @@ Package ``linear``:
 Package ``nn``:
 * ``nn.mlp``: implement the Multi-Layer Perceptron (with and without ``torch.nn.Module``)
 * ``nn.cnn``: implement popular CNNs such as LeNet-5, AlexNet, VGG-11, GoogLeNet, ResNet-18, DenseNet, etc.
-* ``nn.rnn``: *work-in-progress*
+* ``nn.rnn``: implement a basic RNN (one-hidden-layer MLP with hidden state)
 * ``nn.model_construct``: concludes typical methods for deep model's construction
 
 Package ``reinforce``: planning to implement value-based and policy-based RL algorithms, such as 

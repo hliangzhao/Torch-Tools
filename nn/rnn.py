@@ -6,8 +6,7 @@ import torch
 import tools
 import metrics
 import numpy as np
-from torch import nn, optim
-import torch.nn.functional as F
+from torch import nn
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
@@ -58,29 +57,21 @@ def rnn(inputs, hidden_state, params):
     return outputs, (H,)
 
 
-def predict(prefix, num_chars,
-            rnn, params, init_hidden_state, num_hiddens,
-            vocab_size, idx_to_char, char_to_idx,
-            device):
-    """
-    For given prefix of chars, predict the next num_chars chars.
-    """
-    hidden_state = init_hidden_state(batch_size=1, num_hiddens=num_hiddens, device=device)
-    output = [char_to_idx[prefix[0]]]
-    for t in range(num_chars + len(prefix) - 1):
-        # batch_size, num_steps = 1, 1
-        X = metrics.to_onehot(torch.tensor([[output[-1]]], device=device), vocab_size)
-        (Y, hidden_state) = rnn(X, hidden_state, params)
-        if t < len(prefix) - 1:
-            output.append(char_to_idx[prefix[t + 1]])
-        else:
-            output.append(int(Y[0].argmax(dim=1).item()))
-    return ''.join([idx_to_char[o] for o in output])
-
-
 if __name__ == '__main__':
-    # test predict
     corpus_indices, char_to_idx, idx_to_char, vocab_size = tools.load_jay_lyrics(path='../data/jaychou_lyrics.txt.zip')
     num_inputs, num_hiddens, num_outputs = vocab_size, 256, vocab_size
     params = get_params(num_inputs, num_hiddens, num_outputs)
-    print(predict('分开', 10, rnn, params, init_hidden_state, num_hiddens, vocab_size, idx_to_char, char_to_idx, device))
+
+    # # test predict
+    # print(metrics.rnn_predict('分开', 10, rnn, params, init_hidden_state, num_hiddens, vocab_size, idx_to_char, char_to_idx, device))
+
+    # test rnn train and predict
+    num_epochs, num_steps, batch_size, lr, clipping_theta = 250, 35, 32, 1e2, 1e-2
+    pred_period, pred_len, prefixes = 50, 50, ['分开', '不分开']
+    metrics.rnn_train_and_predict(rnn, params, init_hidden_state, num_hiddens, vocab_size, idx_to_char, char_to_idx,
+                                  device, corpus_indices, True, num_epochs, num_steps, lr, clipping_theta,
+                                  batch_size, pred_period, pred_len, prefixes)
+    # if no new params initialized, then what is trained is the same net
+    metrics.rnn_train_and_predict(rnn, params, init_hidden_state, num_hiddens, vocab_size, idx_to_char, char_to_idx,
+                                  device, corpus_indices, False, num_epochs, num_steps, lr, clipping_theta,
+                                  batch_size, pred_period, pred_len, prefixes)

@@ -7,6 +7,7 @@ from torch import nn
 import torch.nn.functional as F
 import tools
 import time
+import math
 
 
 def squared_loss(y_hat, y):
@@ -165,32 +166,6 @@ def universal_train(net, train_iter, test_iter, loss, num_epochs, batch_size, pa
               % (epoch + 1, train_ls_sum / n, train_acc_sum / n, test_acc))
 
 
-def cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs):
-    """
-    A universal training function for CNN and used for classification.
-    """
-    net = net.to(device)
-    print('training on', device)
-    loss = torch.nn.CrossEntropyLoss()
-    for epoch in range(num_epochs):
-        train_ls_sum, train_acc_sum, n, batch_count, start = 0., 0., 0, 0, time.time()
-        for X, y in train_iter:
-            X, y = X.to(device), y.to(device)
-            y_hat = net(X)
-            ls = loss(y_hat, y)
-            optimizer.zero_grad()
-            ls.backward()
-            optimizer.step()
-            train_ls_sum += ls.cpu().item()
-            train_acc_sum += (y_hat.argmax(dim=1) == y).sum().cpu().item()
-            n += y.shape[0]
-            batch_count += 1
-            # print('batch %d finished' % batch_count)
-        test_acc = evaluate_classify_accuracy(test_iter, net)
-        print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.1f sec'
-              % (epoch + 1, train_ls_sum / batch_count, train_acc_sum / n, test_acc, time.time() - start))
-
-
 def test_classify_mnist(test_iter, net, save_path):
     """
     Use Fashion-MNIST dataset to test the classifier's effect.
@@ -329,6 +304,32 @@ class GlobalAvgPool2d(nn.Module):
         return F.avg_pool2d(X, kernel_size=X.size()[2:])
 
 
+def cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs):
+    """
+    A universal training function for CNN and used for classification.
+    """
+    net = net.to(device)
+    print('training on', device)
+    loss = torch.nn.CrossEntropyLoss()
+    for epoch in range(num_epochs):
+        train_ls_sum, train_acc_sum, n, batch_count, start = 0., 0., 0, 0, time.time()
+        for X, y in train_iter:
+            X, y = X.to(device), y.to(device)
+            y_hat = net(X)
+            ls = loss(y_hat, y)
+            optimizer.zero_grad()
+            ls.backward()
+            optimizer.step()
+            train_ls_sum += ls.cpu().item()
+            train_acc_sum += (y_hat.argmax(dim=1) == y).sum().cpu().item()
+            n += y.shape[0]
+            batch_count += 1
+            # print('batch %d finished' % batch_count)
+        test_acc = evaluate_classify_accuracy(test_iter, net)
+        print('epoch %d, loss %.4f, train acc %.3f, test acc %.3f, time %.1f sec'
+              % (epoch + 1, train_ls_sum / batch_count, train_acc_sum / n, test_acc, time.time() - start))
+
+
 def onehot_encoding(X, num_classes, dtype=torch.float32):
     """
     Get one-hot encoding of given input (features).
@@ -353,6 +354,122 @@ def to_onehot(X, num_classes):
     :return: several tensor of size (batch_size, num_classes), here 'several' is actually num_steps
     """
     return [onehot_encoding(X[:, i], num_classes) for i in range(X.shape[1])]
+
+
+def rnn_predict(prefix, num_chars, rnn, params, init_hidden_state, num_hiddens,
+                vocab_size, idx_to_char, char_to_idx, device):
+    """
+    For given prefix of chars, predict the next num_chars chars.
+    """
+    hidden_state = init_hidden_state(batch_size=1, num_hiddens=num_hiddens, device=device)
+    output = [char_to_idx[prefix[0]]]
+    for t in range(num_chars + len(prefix) - 1):
+        # batch_size, num_steps = 1, 1
+        X = to_onehot(torch.tensor([[output[-1]]], device=device), vocab_size)
+        (Y, hidden_state) = rnn(X, hidden_state, params)
+        if t < len(prefix) - 1:
+            output.append(char_to_idx[prefix[t + 1]])
+        else:
+            output.append(int(Y[0].argmax(dim=1).item()))
+    return ''.join([idx_to_char[o] for o in output])
+
+
+def grad_clipping(params, theta, device):
+    """
+    Clip gradient when they are too large.
+    g' <--- min (theta / l2-norm(g), 1) x g.
+    :param params:
+    :param theta:
+    :param device:
+    :return:
+    """
+    norm = torch.tensor([0.], device=device)
+    for param in params:
+        norm += (param.grad.data ** 2).sum()
+    norm = norm.sqrt().item()
+    if norm > theta:
+        for param in params:
+            param.grad.data *= theta / norm
+
+
+def rnn_train_and_predict(rnn, params, init_hidden_state, num_hiddens, vocab_size, idx_to_char, char_to_idx, device,
+                          corpus_indices, is_random_iter, num_epochs, num_steps,
+                          lr, clipping_theta, batch_size, pred_period, pred_len, prefixes):
+    """
+    RNN train and prediction.
+    :param rnn: the fn to get a rnn model
+    :param params:
+    :param init_hidden_state:
+    :param num_hiddens:
+    :param vocab_size:
+    :param idx_to_char:
+    :param char_to_idx:
+    :param device:
+    :param corpus_indices:
+    :param is_random_iter: the data batch is obtained by random sampling or consecutive sampling
+    :param num_epochs:
+    :param num_steps:
+    :param lr:
+    :param clipping_theta:
+    :param batch_size:
+    :param pred_period: how often do we make predictions
+    :param pred_len: the next pred_len chars to predict
+    :param prefixes: the list of prefixes
+    :return:
+    """
+    if is_random_iter:
+        data_iter_fn = tools.get_timeseries_data_batch_random
+    else:
+        data_iter_fn = tools.get_timeseries_data_batch_consecutive
+    loss = nn.CrossEntropyLoss()
+
+    for epoch in range(num_epochs):
+        if not is_random_iter:
+            # if use consecutive sampling, the hidden state should be initialized only at the beginning of each epoch
+            # initialization is not required at the beginning of each minibatch
+            hidden_state = init_hidden_state(batch_size, num_hiddens, device)
+        ls_sum, n, start = 0., 0, time.time()
+        data_iter = data_iter_fn(corpus_indices, batch_size, num_steps, device)
+        for X, Y in data_iter:
+            if is_random_iter:
+                # if use random sampling, the hidden state should be initialized at the beginning of each minibatch
+                hidden_state = init_hidden_state(batch_size, num_hiddens, device)
+            else:
+                # notice that hidden_state is of size (batch_size, num_hiddens), which are belated from the last epoch
+                # the hidden states of these samples should be detached from the computation graph
+                for s in hidden_state:
+                    s.detach_()
+
+            inputs = to_onehot(X, num_classes=vocab_size)
+            (outputs, hidden_state) = rnn(inputs, hidden_state, params)
+            # notice that the outputs is a list of num_steps tensors, each of size (batch_size, vocab_size)
+            # after torch.cat, outputs is a tensor of size (num_steps * batch_size, vocab_size)
+            # outputs = [sample1_step1, sample2_step1, ..., samplen_step1,
+            #            sample1_step2, sample2_step2, ..., samplen_step2,
+            #            ...        ...     ...     ...
+            #            sample1_stepm, sample2_stepm, ..., samplen_stepm]
+            outputs = torch.cat(outputs, dim=0)
+            # y = [sample1_step1, sample2_step1, ..., samplen_step1,
+            #      sample1_step2, sample2_step2, ..., samplen_step2,
+            #      ...        ...     ...     ...
+            #      sample1_stepm, sample2_stepm, ..., samplen_stepm]
+            y = torch.transpose(Y, 0, 1).contiguous().view(-1)
+            ls = loss(outputs, y.long())    # turn y into long type as label
+
+            if params[0].grad is not None:
+                for param in params:
+                    param.grad.data.zero_()
+            ls.backward()
+            grad_clipping(params, clipping_theta, device)
+            sgd(params, lr, batch_size=1)         # ls has been averaged, here batch_size is set as 1
+            ls_sum += ls.item() * y.shape[0]
+            n += y.shape[0]                       # y.shape[0] is num_steps * batch_size
+
+        if (epoch + 1) % pred_period == 0:
+            print('epoch %d, perplexity %f, time %.2f sec' % (epoch + 1, math.exp(ls_sum / n), time.time() - start))
+            for prefix in prefixes:
+                print(' -', rnn_predict(prefix, pred_len, rnn, params, init_hidden_state, num_hiddens,
+                                        vocab_size, idx_to_char, char_to_idx, device))
 
 
 if __name__ == '__main__':
