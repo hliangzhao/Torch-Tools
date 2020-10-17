@@ -3,7 +3,7 @@ This module defines the loss, accuracy, activate functions, training and test pr
     Author: hliangzhao@zju.edu.cn (http://hliangzhao.me)
 """
 import torch
-from torch import nn
+from torch import nn, optim
 import torch.nn.functional as F
 import tools
 import time
@@ -374,6 +374,27 @@ def rnn_predict(prefix, num_chars, rnn, params, init_hidden_state, num_hiddens,
     return ''.join([idx_to_char[o] for o in output])
 
 
+def rnn_predict_torch(prefix, num_chars, model, idx_to_char, char_to_idx, device):
+    """
+    For given prefix of chars, predict the next num_chars chars.
+    """
+    hidden_state = None
+    output = [char_to_idx[prefix[0]]]
+    for t in range(num_chars + len(prefix) - 1):
+        X = torch.tensor([output[-1]], device=device).view(1, 1)
+        if hidden_state is not None:
+            if isinstance(hidden_state, tuple):
+                hidden_state = (hidden_state[0].to(device), hidden_state[1].to(device))
+            else:
+                hidden_state = hidden_state.to(device)
+        (Y, hidden_state) = model(X, hidden_state)
+        if t < len(prefix) - 1:
+            output.append(char_to_idx[prefix[t + 1]])
+        else:
+            output.append(int(Y.argmax(dim=1).item()))
+    return ''.join([idx_to_char[i] for i in output])
+
+
 def grad_clipping(params, theta, device):
     """
     Clip gradient when they are too large.
@@ -470,6 +491,42 @@ def rnn_train_and_predict(rnn, params, init_hidden_state, num_hiddens, vocab_siz
             for prefix in prefixes:
                 print(' -', rnn_predict(prefix, pred_len, rnn, params, init_hidden_state, num_hiddens,
                                         vocab_size, idx_to_char, char_to_idx, device))
+
+
+def rnn_train_and_predict_torch(model, vocab_size, idx_to_char, char_to_idx, device,
+                                corpus_indices, num_epochs, num_steps, lr, clipping_theta,
+                                batch_size, pred_period, pred_len, prefixes):
+    loss = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=lr)
+    model.to(device)
+    hidden_state = None
+    for epoch in range(num_epochs):
+        ls_sum, n, start = 0., 0, time.time()
+        data_iter = tools.get_timeseries_data_batch_consecutive(corpus_indices, batch_size, num_steps, device)
+        for X, Y in data_iter:
+            if hidden_state is not None:
+                if isinstance(hidden_state, tuple):
+                    hidden_state = (hidden_state[0].detach(), hidden_state[1].detach())
+                else:
+                    hidden_state = hidden_state.detach()
+            (output, hidden_state) = model(X, hidden_state)
+            y = torch.transpose(Y, 0, 1).contiguous().view(-1)
+            ls = loss(output, y.long())                 # output and y are of shape (num_steps * batch_size, vocab_size)
+            optimizer.zero_grad()
+            ls.backward()
+            grad_clipping(model.parameters(), clipping_theta, device)
+            optimizer.step()
+            ls_sum += ls.item() * y.shape[0]
+            n += y.shape[0]
+        try:
+            perplexity = math.exp(ls_sum / n)
+        except OverflowError:
+            perplexity = float('inf')
+
+        if (epoch + 1) % pred_period == 0:
+            print('epoch %d, perplexity %f, time %.2f sec' % (epoch + 1, perplexity, time.time() - start))
+            for prefix in prefixes:
+                print(' -', rnn_predict_torch(prefix, pred_len, model, idx_to_char, char_to_idx, device))
 
 
 if __name__ == '__main__':

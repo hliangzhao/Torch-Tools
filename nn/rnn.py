@@ -45,7 +45,8 @@ def rnn(inputs, hidden_state, params):
     :param inputs:
     :param hidden_state:
     :param params:
-    :return:
+    :return: outputs and (H,). Here we return (H,) because we can use state[0] to represent hidden state.
+    We write it this way to keep the same with LSTM (its outputs state is (hidden state, cell state).
     """
     W_xh, W_hh, b_h, W_hq, b_q = params
     H, = hidden_state
@@ -57,13 +58,42 @@ def rnn(inputs, hidden_state, params):
     return outputs, (H,)
 
 
+def rnn_layer(input_size, hidden_size):
+    """
+    Input X should be of shape (num_steps, batch_size, vocab_size).
+    """
+    return nn.RNN(input_size=input_size, hidden_size=hidden_size)
+
+
+class RNNModel(nn.Module):
+    def __init__(self, rnn_layer, vocab_size):
+        super(RNNModel, self).__init__()
+        self.rnn = rnn_layer
+        self.hidden_size = rnn_layer.hidden_size * (2 if rnn_layer.bidirectional else 1)
+        self.vocab_size = vocab_size
+        self.dense = nn.Linear(self.hidden_size, self.vocab_size)
+        self.hidden_state = None
+
+    def forward(self, inputs, hidden_state):
+        # X is of shape (batch_size, num_steps)  ---> num_steps * (batch_size, vocab_size)
+        X = metrics.to_onehot(inputs, self.vocab_size)
+        Y, self.hidden_state = self.rnn(torch.stack(X), hidden_state)
+        # change shape into (num_steps * batch_size, hidden_size)
+        output = self.dense(Y.view(-1, Y.shape[-1]))
+        return output, self.hidden_state
+
+
 if __name__ == '__main__':
     corpus_indices, char_to_idx, idx_to_char, vocab_size = tools.load_jay_lyrics(path='../data/jaychou_lyrics.txt.zip')
     num_inputs, num_hiddens, num_outputs = vocab_size, 256, vocab_size
     params = get_params(num_inputs, num_hiddens, num_outputs)
 
-    # # test predict
-    # print(metrics.rnn_predict('分开', 10, rnn, params, init_hidden_state, num_hiddens, vocab_size, idx_to_char, char_to_idx, device))
+    # test predict
+    print(metrics.rnn_predict('分开', 10, rnn, params, init_hidden_state, num_hiddens, vocab_size, idx_to_char, char_to_idx, device))
+
+    # test predict (torch)
+    model = RNNModel(rnn_layer(input_size=vocab_size, hidden_size=256), vocab_size=vocab_size)
+    print(metrics.rnn_predict_torch('分开', 10, model, idx_to_char, char_to_idx, device))
 
     # test rnn train and predict
     num_epochs, num_steps, batch_size, lr, clipping_theta = 250, 35, 32, 1e2, 1e-2
@@ -75,3 +105,10 @@ if __name__ == '__main__':
     metrics.rnn_train_and_predict(rnn, params, init_hidden_state, num_hiddens, vocab_size, idx_to_char, char_to_idx,
                                   device, corpus_indices, False, num_epochs, num_steps, lr, clipping_theta,
                                   batch_size, pred_period, pred_len, prefixes)
+
+    # test rnn train and predict (torch)
+    num_epochs, num_steps, batch_size, lr, clipping_theta = 250, 35, 32, 1e-3, 1e-2
+    pred_period, pred_len, prefixes = 50, 50, ['分开', '不分开']
+    metrics.rnn_train_and_predict_torch(model, vocab_size, idx_to_char, char_to_idx, device,
+                                        corpus_indices, num_epochs, num_steps, lr, clipping_theta,
+                                        batch_size, pred_period, pred_len, prefixes)
