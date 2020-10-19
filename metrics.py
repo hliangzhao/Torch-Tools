@@ -30,7 +30,7 @@ def cross_entropy_loss(y_hat, y):
 
 def hinge_loss(y_hat, y, max_margin=1.):
     """
-    hinge_loss = (\sum_{i=1}^N \max (0, \sum_{c \neq y} (y_hat_{i,c} - y_hat_i[y] + delta) ) ) / N
+    hinge_loss = (\sum_{i=1}^N \max (0, \sum_{c \neq y} (y_hat_{i,c} - y_hat_i[y] + delta) ) ) / N.
     :param y_hat: of size (batch_size, num_classes)
     :param y: of size (batch_size, 1) or (batch_size)
     :param max_margin: 1 in default
@@ -413,12 +413,12 @@ def grad_clipping(params, theta, device):
             param.grad.data *= theta / norm
 
 
-def rnn_train_and_predict(rnn, params, init_hidden_state, num_hiddens, vocab_size, idx_to_char, char_to_idx, device,
+def rnn_train_and_predict(model, params, init_hidden_state, num_hiddens, vocab_size, idx_to_char, char_to_idx, device,
                           corpus_indices, is_random_iter, num_epochs, num_steps,
                           lr, clipping_theta, batch_size, pred_period, pred_len, prefixes):
     """
     RNN train and prediction.
-    :param rnn: the fn to get a rnn model
+    :param model: the fn to get a rnn model
     :param params:
     :param init_hidden_state:
     :param num_hiddens:
@@ -462,7 +462,7 @@ def rnn_train_and_predict(rnn, params, init_hidden_state, num_hiddens, vocab_siz
                     s.detach_()
 
             inputs = to_onehot(X, num_classes=vocab_size)
-            (outputs, hidden_state) = rnn(inputs, hidden_state, params)
+            (outputs, hidden_state) = model(inputs, hidden_state, params)
             # notice that the outputs is a list of num_steps tensors, each of size (batch_size, vocab_size)
             # after torch.cat, outputs is a tensor of size (num_steps * batch_size, vocab_size)
             # outputs = [sample1_step1, sample2_step1, ..., samplen_step1,
@@ -489,7 +489,7 @@ def rnn_train_and_predict(rnn, params, init_hidden_state, num_hiddens, vocab_siz
         if (epoch + 1) % pred_period == 0:
             print('epoch %d, perplexity %f, time %.2f sec' % (epoch + 1, math.exp(ls_sum / n), time.time() - start))
             for prefix in prefixes:
-                print(' -', rnn_predict(prefix, pred_len, rnn, params, init_hidden_state, num_hiddens,
+                print(' -', rnn_predict(prefix, pred_len, model, params, init_hidden_state, num_hiddens,
                                         vocab_size, idx_to_char, char_to_idx, device))
 
 
