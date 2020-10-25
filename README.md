@@ -32,6 +32,8 @@ Package ``examples`` demonstrates how to use the ``Torch-Tools``.
 to learn the actions.
 * **Offline Service Scheduling (DQN)**: *work-in-progress*
 * **Playing Video Games (DQN)**: *work-in-progress*
+* **NLP**: *work-in-progress*
+* **CV**: *work-in-progress*
 
 
 A Deep Learning theory cheatsheet is also provided at http://hliangzhao.me/math/cheatsheet.pdf.

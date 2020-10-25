@@ -153,6 +153,7 @@ def universal_train(net, train_iter, test_iter, loss, num_epochs, batch_size, pa
 
             ls.backward()
             if optimizer is None:
+                # not use torch
                 sgd(params, lr, batch_size)
             else:
                 # use torch
@@ -370,6 +371,8 @@ def rnn_predict(prefix, num_chars, rnn, params, init_hidden_state, num_hiddens,
         if t < len(prefix) - 1:
             output.append(char_to_idx[prefix[t + 1]])
         else:
+            # notice that here Y is a list of 1 tensor, which is of size (1, vocab_size)
+            # thus we need Y[0] to get this tensor and compare the value on dim 1
             output.append(int(Y[0].argmax(dim=1).item()))
     return ''.join([idx_to_char[o] for o in output])
 
@@ -391,6 +394,7 @@ def rnn_predict_torch(prefix, num_chars, model, idx_to_char, char_to_idx, device
         if t < len(prefix) - 1:
             output.append(char_to_idx[prefix[t + 1]])
         else:
+            # notice that here Y is of size (1, vocab_size) because both num_steps and batch_size are 1
             output.append(int(Y.argmax(dim=1).item()))
     return ''.join([idx_to_char[i] for i in output])
 

@@ -60,7 +60,6 @@ def get_lstm_params(num_inputs, num_hiddens, num_outputs):
     """
     Initialize the params for LSTM.
     """
-
     def _one(shape):
         return nn.Parameter(
             torch.tensor(np.random.normal(0, 0.01, size=shape), device=device, dtype=torch.float32),
@@ -99,7 +98,7 @@ def init_lstm_state(batch_size, num_hiddens, device):
 
 def rnn(inputs, hidden_state, params):
     """
-    inputs and outputs are num_steps tensors, each of size (batch_size, vocab_size), rather than one tensor of size
+    Inputs and outputs are num_steps tensors, each of size (batch_size, vocab_size), rather than one tensor of size
     (batch_size, num_steps). In other words, the input is after one-hot encoding.
     :param inputs:
     :param hidden_state:
@@ -110,7 +109,7 @@ def rnn(inputs, hidden_state, params):
     W_xh, W_hh, b_h, W_hq, b_q = params
     H, = hidden_state
     outputs = []
-    for X in inputs:
+    for X in inputs:         # iteration over num_steps
         H = torch.tanh(torch.matmul(X, W_xh) + torch.matmul(H, W_hh) + b_h)
         Y = torch.matmul(H, W_hq) + b_q
         outputs.append(Y)
@@ -118,10 +117,13 @@ def rnn(inputs, hidden_state, params):
 
 
 def gru(inputs, hidden_state, params):
+    """
+    Inputs and outputs are num_steps tensors, each of size (batch_size, vocab_size).
+    """
     W_xz, W_hz, b_z, W_xr, W_hr, b_r, W_xh, W_hh, b_h, W_hq, b_q = params
     H, = hidden_state
     outputs = []
-    for X in inputs:
+    for X in inputs:         # iteration over num_steps
         Z = torch.sigmoid(torch.matmul(X, W_xz) + torch.matmul(H, W_hz) + b_z)
         R = torch.sigmoid(torch.matmul(X, W_xr) + torch.matmul(H, W_hr) + b_r)
         H_tilde = torch.tanh(torch.matmul(X, W_xh) + torch.matmul(R * H, W_hh) + b_h)
@@ -132,10 +134,13 @@ def gru(inputs, hidden_state, params):
 
 
 def lstm(inputs, hidden_state, params):
+    """
+    Inputs and outputs are num_steps tensors, each of size (batch_size, vocab_size).
+    """
     W_xi, W_hi, b_i, W_xf, W_hf, b_f, W_xo, W_ho, b_o, W_xc, W_hc, b_c, W_hq, b_q = params
     (H, C) = hidden_state
     outputs = []
-    for X in inputs:
+    for X in inputs:         # iteration over num_steps
         I = torch.sigmoid(torch.matmul(X, W_xi) + torch.matmul(H, W_hi) + b_i)
         F = torch.sigmoid(torch.matmul(X, W_xf) + torch.matmul(H, W_hf) + b_f)
         O = torch.sigmoid(torch.matmul(X, W_xo) + torch.matmul(H, W_ho) + b_o)
@@ -149,20 +154,32 @@ def lstm(inputs, hidden_state, params):
 
 def rnn_layer(input_size, hidden_size):
     """
-    Input X should be of shape (num_steps, batch_size, vocab_size).
+    Define RNN with torch directly.
+    Input X should be a tensor, which of shape (num_steps, batch_size, vocab_size).
     """
     return nn.RNN(input_size=input_size, hidden_size=hidden_size)
 
 
 def gru_layer(input_size, hidden_size):
+    """
+    Define GRU with torch directly.
+    Input X should be a tensor, which of shape (num_steps, batch_size, vocab_size).
+    """
     return nn.GRU(input_size=input_size, hidden_size=hidden_size)
 
 
 def lstm_layer(input_size, hidden_size):
+    """
+    Define LSTM with torch directly.
+    Input X should be a tensor, which of shape (num_steps, batch_size, vocab_size).
+    """
     return nn.LSTM(input_size=input_size, hidden_size=hidden_size)
 
 
 class RNNModel(nn.Module):
+    """
+    Wrap the RNN, GRU or LSTM to get a complete net.
+    """
     def __init__(self, rnn_layer, vocab_size):
         super(RNNModel, self).__init__()
         self.rnn = rnn_layer
@@ -172,10 +189,12 @@ class RNNModel(nn.Module):
         self.hidden_state = None
 
     def forward(self, inputs, hidden_state):
-        # X is of shape (batch_size, num_steps)  ---> num_steps * (batch_size, vocab_size)
+        # inputs is of shape (batch_size, num_steps)  ---> X is of size num_steps * (batch_size, vocab_size)
         X = metrics.to_onehot(inputs, self.vocab_size)
+        # use torch.stack(X) to change the list X into a tensor (num_steps, batch_size, vocab_size)
+        # Y is of size (num_steps, batch_size, hidden_size)
         Y, self.hidden_state = self.rnn(torch.stack(X), hidden_state)
-        # change shape into (num_steps * batch_size, hidden_size)
+        # change Y's shape into (num_steps * batch_size, hidden_size), and get (num_steps * batch_size, vocab_size) as the output
         output = self.dense(Y.view(-1, Y.shape[-1]))
         return output, self.hidden_state
 

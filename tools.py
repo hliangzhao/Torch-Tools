@@ -233,6 +233,12 @@ def get_timeseries_data_batch_consecutive(corpus_indices, batch_size, num_steps,
         yield X, Y
 
 
+def get_NASA_data():
+    data = np.genfromtxt('data/airfoil_self_noise.dat', delimiter='\t')
+    data = (data - data.mean(axis=0)) / data.std(axis=0)
+    return torch.tensor(data[:1500, :-1], dtype=torch.float32), torch.tensor(data[:1500,  -1], dtype=torch.float32)
+
+
 if __name__ == '__main__':
     # 1. test get_data_batch and test get_data_batch_torch
     sample_num = 100
