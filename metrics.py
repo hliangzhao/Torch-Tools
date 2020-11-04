@@ -5,9 +5,13 @@ This module defines the loss, accuracy, activate functions, training and test pr
 import torch
 from torch import nn, optim
 import torch.nn.functional as F
+import torch.utils.data as data
 import tools
 import time
 import math
+import matplotlib.pyplot as plt
+import numpy as np
+from linear.regression import linear_reg
 
 
 def squared_loss(y_hat, y):
@@ -531,6 +535,84 @@ def rnn_train_and_predict_torch(model, vocab_size, idx_to_char, char_to_idx, dev
             print('epoch %d, perplexity %f, time %.2f sec' % (epoch + 1, perplexity, time.time() - start))
             for prefix in prefixes:
                 print(' -', rnn_predict_torch(prefix, pred_len, model, idx_to_char, char_to_idx, device))
+
+
+def opt_train(optimizer_fn, states, hyperparams, features, labels, save_path, batch_size=10, num_epochs=2):
+    """
+    A general train func for testing various optimizers and printing the trace of loss.
+    The benchmark is a linear regression model with NASA data.
+    """
+    net, loss = linear_reg, squared_loss
+    W = nn.Parameter(
+        torch.tensor(np.random.normal(0, 0.01, size=(features.shape[1], 1)), dtype=torch.float32),
+        requires_grad=True
+    )
+    b = nn.Parameter(torch.zeros(1, dtype=torch.float32), requires_grad=True)
+
+    def eval_loss():
+        # evaluate the mean squared loss over the whole dataset
+        return loss(net(features, W, b), labels).mean().item()
+
+    ls = [eval_loss()]
+    data_iter = tools.get_data_batch_torch(batch_size, features, labels)
+
+    start = time.time()
+    for _ in range(num_epochs):
+        for batch_idx, (X, y) in enumerate(data_iter):
+            l = loss(net(X, W, b), y).mean()
+            if W.grad is not None:
+                W.grad.data.zero_()
+                b.grad.data.zero_()
+            l.backward()
+            optimizer_fn([W, b], states, hyperparams)
+            if (batch_idx + 1) * batch_size % 100 == 0:    # call once every 100 samples
+                ls.append(eval_loss())
+
+    print('loss: %f, %f sec per epoch' % (ls[-1], (time.time() - start) / num_epochs))
+    tools.set_figsize()
+    plt.plot(np.linspace(0, num_epochs, len(ls)), ls)
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.savefig(save_path)
+    plt.show()
+
+
+def opt_train_torch(optimizer_fn, optimizer_hyperparams, features, labels, save_path, batch_size=10, num_epochs=2):
+    """
+    A general train func for testing various optimizers and printing the trace of loss.
+    The benchmark is a linear regression model with NASA data.
+    Implement by Torch.
+    """
+    net = nn.Sequential(
+        nn.Linear(features.shape[-1], 1)
+    )
+    loss = nn.MSELoss()
+    optimizer = optimizer_fn(net.parameters(), **optimizer_hyperparams)
+
+    def eval_loss():
+        return loss(net(features).view(-1), labels).item() / 2
+
+    ls = [eval_loss()]
+    data_iter = data.DataLoader(data.TensorDataset(features, labels), batch_size, shuffle=True)
+
+    start = time.time()
+    for _ in range(num_epochs):
+        for batch_idx, (X, y) in enumerate(data_iter):
+            l = loss(net(X).view(-1), y) / 2
+            optimizer.zero_grad()
+            l.backward()
+            optimizer.step()
+
+            if (batch_idx + 1) * batch_size % 100 == 0:
+                ls.append(eval_loss())
+
+    print('loss: %f, %f sec per epoch' % (ls[-1], (time.time() - start) / num_epochs))
+    tools.set_figsize()
+    plt.plot(np.linspace(0, num_epochs, len(ls)), ls)
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.savefig(save_path)
+    plt.show()
 
 
 if __name__ == '__main__':
