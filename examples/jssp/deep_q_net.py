@@ -9,7 +9,7 @@ from keras import layers, models, optimizers
 import torch
 from torch import nn, optim
 
-from examples.job_shop_scheduling import env
+from examples.jssp import env
 from nn import mlp
 
 EPISODES_NUM = 10000

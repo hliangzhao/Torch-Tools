@@ -1,4 +1,4 @@
-### Job Shop Scheduling example
+### Example: Job Shop Scheduling Problem (JSSP)
 
 This package implements the code for the paper:
 https://www.ncbi.nlm.nih.gov/pmc/articles/PMC6652087/pdf/CIN2019-7172842.pdf.

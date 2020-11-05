@@ -5,9 +5,13 @@ This module visualizes how the optimization algorithms work.
 import tools
 import torch
 import math
-import numpy as np
-import matplotlib.pyplot as plt
+import time
 import metrics
+import matplotlib.pyplot as plt
+import numpy as np
+from linear.regression import linear_reg
+from torch import nn
+import torch.utils.data as Data
 
 
 features, labels = tools.get_NASA_data('../data/airfoil_self_noise.dat')
@@ -253,11 +257,11 @@ def rmsprop(params, states, hyperparams):
 
 
 def test_sgd(lr, batch_size, save_path, num_epochs=2):
-    metrics.opt_train(sgd, None, {'lr': lr}, features, labels, save_path, batch_size, num_epochs)
+    opt_train(sgd, None, {'lr': lr}, features, labels, save_path, batch_size, num_epochs)
 
 
 def test_sgd_torch(lr, batch_size, save_path, num_epochs=2):
-    metrics.opt_train_torch(torch.optim.SGD, {'lr': lr}, features, labels, save_path, batch_size, num_epochs)
+    opt_train_torch(torch.optim.SGD, {'lr': lr}, features, labels, save_path, batch_size, num_epochs)
 
 
 def init_adadelta_state():
@@ -292,6 +296,84 @@ def adam(params, states, hyperparams):
     hyperparams['t'] += 1
 
 
+def opt_train(optimizer_fn, states, hyperparams, features, labels, save_path, batch_size=10, num_epochs=2):
+    """
+    A general train func for testing various optimizers and printing the trace of loss.
+    The benchmark is a linear regression model with NASA data.
+    """
+    net, loss = linear_reg, metrics.squared_loss
+    W = nn.Parameter(
+        torch.tensor(np.random.normal(0, 0.01, size=(features.shape[1], 1)), dtype=torch.float32),
+        requires_grad=True
+    )
+    b = nn.Parameter(torch.zeros(1, dtype=torch.float32), requires_grad=True)
+
+    def eval_loss():
+        # evaluate the mean squared loss over the whole dataset
+        return loss(net(features, W, b), labels).mean().item()
+
+    ls = [eval_loss()]
+    data_iter = tools.get_data_batch_torch(batch_size, features, labels)
+
+    start = time.time()
+    for _ in range(num_epochs):
+        for batch_idx, (X, y) in enumerate(data_iter):
+            l = loss(net(X, W, b), y).mean()
+            if W.grad is not None:
+                W.grad.data.zero_()
+                b.grad.data.zero_()
+            l.backward()
+            optimizer_fn([W, b], states, hyperparams)
+            if (batch_idx + 1) * batch_size % 100 == 0:    # call once every 100 samples
+                ls.append(eval_loss())
+
+    print('loss: %f, %f sec per epoch' % (ls[-1], (time.time() - start) / num_epochs))
+    tools.set_figsize()
+    plt.plot(np.linspace(0, num_epochs, len(ls)), ls)
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.savefig(save_path)
+    plt.show()
+
+
+def opt_train_torch(optimizer_fn, optimizer_hyperparams, features, labels, save_path, batch_size=10, num_epochs=2):
+    """
+    A general train func for testing various optimizers and printing the trace of loss.
+    The benchmark is a linear regression model with NASA data.
+    Implement by Torch.
+    """
+    net = nn.Sequential(
+        nn.Linear(features.shape[-1], 1)
+    )
+    loss = nn.MSELoss()
+    optimizer = optimizer_fn(net.parameters(), **optimizer_hyperparams)
+
+    def eval_loss():
+        return loss(net(features).view(-1), labels).item() / 2
+
+    ls = [eval_loss()]
+    data_iter = Data.DataLoader(Data.TensorDataset(features, labels), batch_size, shuffle=True)
+
+    start = time.time()
+    for _ in range(num_epochs):
+        for batch_idx, (X, y) in enumerate(data_iter):
+            l = loss(net(X).view(-1), y) / 2
+            optimizer.zero_grad()
+            l.backward()
+            optimizer.step()
+
+            if (batch_idx + 1) * batch_size % 100 == 0:
+                ls.append(eval_loss())
+
+    print('loss: %f, %f sec per epoch' % (ls[-1], (time.time() - start) / num_epochs))
+    tools.set_figsize()
+    plt.plot(np.linspace(0, num_epochs, len(ls)), ls)
+    plt.xlabel('epoch')
+    plt.ylabel('loss')
+    plt.savefig(save_path)
+    plt.show()
+
+
 if __name__ == '__main__':
     # 1. show extreme point and saddle point
     ShowPoint.show_minimum()
@@ -323,30 +405,30 @@ if __name__ == '__main__':
 
     # 9. test momentum
     show_trace_2d(f2_2d, train_2d(momentum_2d, 0.5), save_path='../figs/momentum_2d.png')
-    metrics.opt_train(sgd_momentum, init_momentum_state(), {'lr': 0.02, 'momentum': 0.5}, features, labels,
-                      '../figs/momentum1.png')
-    metrics.opt_train(sgd_momentum, init_momentum_state(), {'lr': 0.02, 'momentum': 0.9}, features, labels,
-                      '../figs/momentum2.png')
-    metrics.opt_train(sgd_momentum, init_momentum_state(), {'lr': 0.004, 'momentum': 0.9}, features, labels,
-                      '../figs/momentum3.png')
-    metrics.opt_train_torch(torch.optim.SGD, {'lr': 0.004, 'momentum': 0.9}, features, labels,
-                            '../figs/momentum4.png')
+    opt_train(sgd_momentum, init_momentum_state(), {'lr': 0.02, 'momentum': 0.5}, features, labels,
+              '../figs/momentum1.png')
+    opt_train(sgd_momentum, init_momentum_state(), {'lr': 0.02, 'momentum': 0.9}, features, labels,
+              '../figs/momentum2.png')
+    opt_train(sgd_momentum, init_momentum_state(), {'lr': 0.004, 'momentum': 0.9}, features, labels,
+              '../figs/momentum3.png')
+    opt_train_torch(torch.optim.SGD, {'lr': 0.004, 'momentum': 0.9}, features, labels,
+                    '../figs/momentum4.png')
 
     # 10. test adagrad
     show_trace_2d(f2_2d, train_2d(adagrad_2d, 0.4), save_path='../figs/adagrad_2d.png')
     show_trace_2d(f2_2d, train_2d(adagrad_2d, 2), save_path='../figs/adagrad_2d.png')
-    metrics.opt_train(adagrad, init_adagrad_state(), {'lr': 0.1}, features, labels, save_path='../figs/adagrad1.png')
-    metrics.opt_train_torch(torch.optim.Adagrad, {'lr': 0.1}, features, labels, save_path='../figs/adagrad2.png')
+    opt_train(adagrad, init_adagrad_state(), {'lr': 0.1}, features, labels, save_path='../figs/adagrad1.png')
+    opt_train_torch(torch.optim.Adagrad, {'lr': 0.1}, features, labels, save_path='../figs/adagrad2.png')
 
     # 11. test RMSProp
     show_trace_2d(f2_2d, train_2d(rmsprop_2d, 0.4), save_path='../figs/rmsprop_2d.png')
-    metrics.opt_train(adagrad, init_adagrad_state(), {'lr': 0.1, 'gamma': 0.9}, features, labels, save_path='../figs/rmsprop1.png')
-    metrics.opt_train_torch(torch.optim.RMSprop, {'lr': 0.1, 'alpha': 0.9}, features, labels, save_path='../figs/rmsprop2.png')
+    opt_train(adagrad, init_adagrad_state(), {'lr': 0.1, 'gamma': 0.9}, features, labels, save_path='../figs/rmsprop1.png')
+    opt_train_torch(torch.optim.RMSprop, {'lr': 0.1, 'alpha': 0.9}, features, labels, save_path='../figs/rmsprop2.png')
 
     # 12. test AdaDelta
-    metrics.opt_train(adadelta, init_adadelta_state(), {'rho': 0.99}, features, labels, save_path='../figs/adadelta1.png')
-    metrics.opt_train_torch(torch.optim.Adadelta,  {'rho': 0.99}, features, labels, save_path='../figs/adadelta2.png')
+    opt_train(adadelta, init_adadelta_state(), {'rho': 0.99}, features, labels, save_path='../figs/adadelta1.png')
+    opt_train_torch(torch.optim.Adadelta,  {'rho': 0.99}, features, labels, save_path='../figs/adadelta2.png')
 
     # 13. test adam
-    metrics.opt_train(adam, init_adam_states(), {'lr': 0.01, 't': 1}, features, labels, save_path='../figs/adam1.png')
-    metrics.opt_train_torch(torch.optim.Adam, {'lr': 0.01}, features, labels, save_path='../figs/adam2.png')
+    opt_train(adam, init_adam_states(), {'lr': 0.01, 't': 1}, features, labels, save_path='../figs/adam1.png')
+    opt_train_torch(torch.optim.Adam, {'lr': 0.01}, features, labels, save_path='../figs/adam2.png')

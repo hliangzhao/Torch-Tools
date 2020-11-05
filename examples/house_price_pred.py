@@ -1,5 +1,5 @@
 """
-This module gives a test case on using linear regression to predict the house price.
+This module gives an example on using linear regression to predict the house price.
     Author: hliangzhao@zju.edu.cn (http://hliangzhao.me)
 """
 import torch
