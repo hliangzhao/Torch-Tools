@@ -27,8 +27,8 @@ def import_dataset(path='../../data/ptb/ptb.train.txt'):
         lines = f.readlines()
         raw_dataset = [sentence.split() for sentence in lines]
         # raw_dataset is a list of list, where the inner list's elements are the tokens of one sentence
-        print('# sentences: %d' % len(raw_dataset))
-        print('# tokens in the first sentence: %d' % len(raw_dataset[0]))
+        print('#sentences: %d' % len(raw_dataset))
+        print('#tokens in the first sentence: %d' % len(raw_dataset[0]))
     return raw_dataset
 
 
@@ -41,7 +41,7 @@ def set_token_idx(raw_dataset):
     # same shape with raw_dataset, but element is replaced by idx
     dataset = [[tk2idx[tk] for tk in st if tk in tk2idx] for st in raw_dataset]
     num_tokens = sum([len(st) for st in dataset])
-    print('# tokens in the preprocessed dataset: %d' % num_tokens)
+    print('#tokens in the preprocessed dataset: %d' % num_tokens)
     return counter, idx2tk, tk2idx, dataset, num_tokens
 
 
@@ -62,7 +62,7 @@ def subsampling(dataset, counter, idx2tk, num_tokens):
 
 def compare_cts(tk, tk2idx, dataset, subsampled_dataset):
     idx = tk2idx[tk]
-    return '# \'%s\': before = %d, after = %d' % \
+    return '#\'%s\': before = %d, after = %d' % \
            (tk, sum([st.count(idx) for st in dataset]), sum([st.count(idx) for st in subsampled_dataset]))
 
 
@@ -223,23 +223,23 @@ def train(net, lr, num_epochs, loss, data_iter):
         print('epoch %d, loss %.2f, time %.2fs' % (epoch + 1, ls_sum / batch_idx, time.time() - start))
 
 
-def get_similar_tokens(query_tk, k, tk2idx, embed_v):
+def get_similar_tokens(query_tk, k, tk2idx, idx2tk, embed_v):
     # (num_tokens, embedding_dim)
     W = embed_v.weight.data
     # (1, embedding_dim)
     x = W[tk2idx[query_tk]]
-    cos = (torch.matmul(W, x) / (torch.sum(W * W, dim=1) * torch.sum(x * x) + 1e-9).sqrt())
+    cos = torch.matmul(W, x) / (torch.sum(W * W, dim=1) * torch.sum(x * x) + 1e-9).sqrt()
     _, top_k = torch.topk(cos, k + 1)
     top_k = top_k.cpu().numpy()
     for i in top_k[1:]:
-        print('cosine similarity = %.3f: %s' % (cos[i], (idx2tk[i])))
+        print('cosine similarity = %.3f: %s' % (cos[i].item(), (idx2tk[i])))
 
 
 if __name__ == '__main__':
     # 1. import dataset and preprocess
     raw_dataset = import_dataset()
     for sentence in raw_dataset[:3]:
-        print('# tokens:', len(sentence), '-- the first 5 tokens:', sentence[:5])
+        print('#tokens:', len(sentence), '-- the first 5 tokens:', sentence[:5])
     counter, idx2tk, tk2idx, dataset, num_tokens = set_token_idx(raw_dataset)
     subsampled_dataset = subsampling(dataset, counter, idx2tk, num_tokens)
     print(compare_cts('the', tk2idx, dataset, subsampled_dataset))
@@ -271,4 +271,4 @@ if __name__ == '__main__':
     net = embed(idx2tk, embed_size)
     loss = SigmoidBinCEL()
     train(net, 0.01, 2, loss, data_iter)
-    get_similar_tokens('chip', 3, tk2idx, net[0])
+    get_similar_tokens('chip', 3, tk2idx, idx2tk, net[0])

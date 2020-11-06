@@ -138,3 +138,7 @@ dmypy.json
 cython_debug/
 
 .DS_Store
+# the dataset below are not included becasue they are too big
+data/pretrained_glove
+data/aclImdb
+data/aclImdb_v1.tar.gz

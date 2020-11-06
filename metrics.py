@@ -178,6 +178,20 @@ def test_classify_mnist(test_iter, net, save_path):
     tools.show_fashion_MNIST(X[0:10], titles[0:10], save_path=save_path)
 
 
+def corr1d(X, K):
+    """
+    The 1-dim correlation computation for X and K.
+    :param X: the input feature
+    :param K: the filter
+    :return: the output feature
+    """
+    w = K.shape[0]
+    Y = torch.zeros(X.shape[0] - w + 1)
+    for i in range(Y.shape[0]):
+        Y[i] = (X[i: i + w] * K).sum()
+    return Y
+
+
 def corr2d(X, K):
     """
     The 2-dim correlation computation for X and K.
@@ -192,6 +206,10 @@ def corr2d(X, K):
             # element-wise multiplication and adding afterward
             Y[i, j] = (X[i: i + h, j: j + w] * K).sum()
     return Y
+
+
+def corr1d_multi_in(X, K):
+    return torch.stack([corr1d(x, k) for x, k in zip(X, K)]).sum(dim=0)
 
 
 def corr2d_multi_in(X, K):
@@ -303,6 +321,20 @@ class GlobalAvgPool2d(nn.Module):
 
     def forward(self, X):
         return F.avg_pool2d(X, kernel_size=X.size()[2:])
+
+
+class GlobalMaxPool1d(nn.Module):
+    """
+    Max-over-time pooling.
+    The return of each channel is the maximum element (over num_steps) of this channel.
+    """
+    def __init__(self):
+        super(GlobalMaxPool1d, self).__init__()
+
+    def forward(self, X):
+        # X is of size (batch_size, channel_num, num_steps)
+        # return (batch_size, channel_num, 1)
+        return F.max_pool1d(X, kernel_size=X.shape[2])
 
 
 def cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs):
