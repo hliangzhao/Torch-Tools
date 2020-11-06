@@ -51,7 +51,7 @@ def tokenize(data):
     return [tokenizer(review) for review, _ in data]
 
 
-def get_vocab(data):
+def creat_vocab(data):
     """
     Create vocabulary from the given dataset.
     """
@@ -183,7 +183,7 @@ def predict_sentiment(net, vocab, sentence):
 if __name__ == '__main__':
     # 1. load dataset and get vocab
     train_data, test_data = read_imdb('train'), read_imdb('test')
-    vocab = get_vocab(train_data)
+    vocab = creat_vocab(train_data)
     print(len(vocab), type(vocab))
 
     # 2. creat data iter for training
