@@ -32,7 +32,8 @@ Package ``examples`` demonstrates how to use the ``Torch-Tools``.
 to learn the actions.
 * **Offline Service Scheduling (DQN)**: *work-in-progress*
 * **Playing Video Games (DQN)**: *work-in-progress*
-* **NLP**: *work-in-progress*
+* **NLP**: implement word2vec model, BiRNN and TextCNN for sentiment classification, 
+seq2seq model, and machine translation
 * **CV**: *work-in-progress*
 
 
