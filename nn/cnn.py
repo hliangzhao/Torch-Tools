@@ -503,25 +503,30 @@ def DenseNet18():
 
 if __name__ == '__main__':
     # test LeNet-5
+    print('Test LeNet-5')
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data')
-    net = LeNet5()
+    net = nn.DataParallel(LeNet5())
     print(net)
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=5)
+    print('\n\n')
 
     # test AlexNet
+    print('Test AlexNet')
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data', resize=224)
-    net = AlexNet()
+    net = nn.DataParallel(AlexNet())
     print(net)
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)
+    print('\n\n')
 
     # test VGG-11
+    print('Test VGG-11')
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data', resize=224)
     conv_arch = ((1, 1, 64), (1, 64, 128), (2, 128, 256), (2, 256, 512), (2, 512, 512))
     # 224 / 2^5 = 7
     fc_features = 512 * 7 * 7
-    net = VGG11(conv_arch, fc_features)
+    net = nn.DataParallel(VGG11(conv_arch, fc_features))
     print(net)
     X = torch.rand(1, 1, 224, 224)
     for name, block in net.named_children():
@@ -529,10 +534,12 @@ if __name__ == '__main__':
         print(name, 'output shape: ', X.shape)
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)
+    print('\n\n')
 
     # test NiN
+    print('Test Network-in-Network')
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data', resize=224)
-    net = NiN()
+    net = nn.DataParallel(NiN())
     print(net)
     X = torch.rand(1, 1, 224, 224)
     for name, block in net.named_children():
@@ -540,10 +547,12 @@ if __name__ == '__main__':
         print(name, 'output shape: ', X.shape)
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)
+    print('\n\n')
 
     # test GooLeNet
+    print('Test GoogLeNet')
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data', resize=96)
-    net = GoogLeNet()
+    net = nn.DataParallel(GoogLeNet())
     print(net)
     X = torch.rand(1, 1, 96, 96)
     for name, block in net.named_children():
@@ -551,18 +560,22 @@ if __name__ == '__main__':
         print(name, 'output shape: ', X.shape)
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)
+    print('\n\n')
 
     # test batch normalization
+    print('Test batch normalized LeNet')
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data')
-    net = BatchNormalizedLeNet()
+    net = nn.DataParallel(BatchNormalizedLeNet())
     print(net)
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=5)
     print(BatchNormalizedLeNet1())
+    print('\n\n')
 
     # test ResNet-18
+    print('Test ResNet-18')
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data', resize=96)
-    net = ResNet18()
+    net = nn.DataParallel(ResNet18())
     print(net)
     X = torch.rand(1, 1, 244, 244)
     for name, block in net.named_children():
@@ -570,10 +583,12 @@ if __name__ == '__main__':
         print(name, 'output shape: ', X.shape)
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)
+    print('\n\n')
 
     # test DenseNet-18
+    print('Test DenseNet-18')
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, root='../data', resize=96)
-    net = DenseNet18()
+    net = nn.DataParallel(DenseNet18())
     print(net)
     X = torch.rand(1, 1, 96, 96)
     for name, block in net.named_children():
@@ -581,3 +596,4 @@ if __name__ == '__main__':
         print(name, 'output shape: ', X.shape)
     optimizer = optim.Adam(net.parameters(), lr=0.001)
     metrics.cnn_train(net, train_iter, test_iter, optimizer, device, num_epochs=1)
+    print('\n\n')

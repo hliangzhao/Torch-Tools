@@ -7,6 +7,7 @@ import numpy as np
 import tools
 import metrics
 from torch import nn, optim
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def linear_reg(X, W, b):
@@ -18,6 +19,7 @@ def linear_reg(X, W, b):
 
 
 def train_linear_reg(features, labels, W, b, epoch_num, lr, batch_size):
+    print('Training on: cpu')
     for epoch in range(epoch_num):
         for X, y in tools.get_data_batch(batch_size, features, labels):
             # (X, y) is a mini batch of data, where sample_num = batch_size
@@ -50,9 +52,12 @@ class LinearNet(nn.Module):
 
 
 def train_linear_net(features, labels, net, loss, optimizer, epoch_num, batch_size):
+    print('Training on:', device)
+    net = net.to(device)
     for epoch in range(epoch_num):
         ls = None
         for X, y in tools.get_data_batch_torch(batch_size, features, labels):
+            X, y = X.to(device), y.to(device)
             ls = loss(net(X), y.view(-1, 1))
             optimizer.zero_grad()
             # call backward() to calculate the grad of params
@@ -79,6 +84,7 @@ if __name__ == '__main__':
     train_linear_reg(features, labels, W, b, epoch_num=10, lr=0.01, batch_size=20)
     print(true_W, W)
     print(true_b, b)
+    print('\n\n')
 
     # 2. test LinearNet
     net = LinearNet(in_feature=2)

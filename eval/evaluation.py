@@ -1,5 +1,5 @@
 """
-This module tests under-fitting, over-fitting, and regularization by a regression.
+This module tests under-fitting, over-fitting, and regularization with the example of regression.
     Author: hliangzhao@zju.edu.cn (http://hliangzhao.me)
 """
 import tools

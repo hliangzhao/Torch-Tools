@@ -9,8 +9,6 @@ import time
 import torch
 from torch import nn, optim
 import torch.utils.data as Data
-import tools
-import metrics
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -270,5 +268,5 @@ if __name__ == '__main__':
     embed_size = 100
     net = embed(idx2tk, embed_size)
     loss = SigmoidBinCEL()
-    train(net, 0.01, 2, loss, data_iter)
+    train(net, 0.01, 20, loss, data_iter)
     get_similar_tokens('chip', 3, tk2idx, idx2tk, net[0])

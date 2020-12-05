@@ -9,7 +9,8 @@ import metrics
 from torch import nn, optim
 import matplotlib.pyplot as plt
 import numpy as np
-from sklearn.datasets.samples_generator import make_blobs
+from sklearn.datasets import make_blobs
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def svm_loss(y_hat, y, max_margin=1., lambd=2e-3):
@@ -17,7 +18,7 @@ def svm_loss(y_hat, y, max_margin=1., lambd=2e-3):
     The hinge loss adding on the l2-norm.
     """
     # notice that the net[1].weight is defined outside
-    return metrics.hinge_loss(y_hat, y, max_margin) + lambd * metrics.l2_penalty(net[1].weight)
+    return metrics.hinge_loss(y_hat, y, device, max_margin) + lambd * metrics.l2_penalty(net[1].weight)
 
 
 def SVM():
@@ -32,7 +33,9 @@ def train_2dim_svm(X, Y, net, epoch_num=5):
     """
     Use 2-dim feature as the input of SVM to visualize its effect.
     """
-    X, Y = torch.FloatTensor(X), torch.FloatTensor(Y)
+    print('Training on:', device)
+    net = net.to(device)
+    X, Y = torch.FloatTensor(X).to(device), torch.FloatTensor(Y).to(device)
     num_samples = len(Y)
     optimizer = optim.SGD(net.parameters(), lr=0.1)
     for epoch in range(epoch_num):
@@ -85,6 +88,7 @@ def visualize(X, model):
 
 if __name__ == '__main__':
     # test hinge loss
+    print('Test hinge loss')
     o = torch.tensor([[-0.39, 1.49, 4.21], [-4.61, 3.28, 1.46], [1.03, -2.37, -2.27]])
     print(o, o.shape)
     l = torch.tensor([0, 1, 2])
@@ -94,15 +98,18 @@ if __name__ == '__main__':
     tmp = torch.max(ms, other=torch.tensor(0.))
     print(ms, tmp)
     print(torch.mean(torch.sum(tmp, dim=1) - 1.))
+    print('\n\n')
 
     # test SVM
+    print('Training SVM classifier on Fashion MNIST')
     train_iter, test_iter = tools.load_fashion_MNIST(batch_size=256, resize=None, root='../data', num_workers=4)
     net = SVM()
     optimizer = optim.SGD(net.parameters(), lr=1e-3, momentum=0.9)
-    # train(net, train_iter, test_iter, svm_loss, 25, optimizer)
-    metrics.universal_train(net, train_iter, test_iter, svm_loss, 5, 256, None, None, optimizer)
+    metrics.universal_train(net, train_iter, test_iter, svm_loss, 5, 256, device, None, None, optimizer)
+    print('\n\n')
 
     # test 2-dim SVM classifier
+    print('Training 2-dim SVM on toy dataset')
     X, Y = make_blobs(n_samples=500, centers=2, random_state=0, cluster_std=0.4)
     X = (X - X.mean()) / X.std()
     Y[np.where(Y == 0)] = -1

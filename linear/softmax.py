@@ -7,6 +7,7 @@ import numpy as np
 import tools
 import metrics
 from torch import nn, optim
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def softmax_classify(X):
@@ -18,6 +19,7 @@ def softmax_classify(X):
 
 
 def train_softmax_classify(train_iter, test_iter, W, b, epoch_num, lr, batch_size):
+    print('Training on: cpu')
     for epoch in range(epoch_num):
         train_ls_sum, train_acc_sum, n = 0., 0., 0
         for X, y in train_iter:
@@ -43,6 +45,7 @@ def train_softmax_classify(train_iter, test_iter, W, b, epoch_num, lr, batch_siz
 
 
 def test_softmax_classify(test_iter):
+    print('Testing on: cpu')
     X, y = iter(test_iter).next()
     true_labels = tools.get_fashion_MNIST_labels(y.numpy())
     pred_labels = tools.get_fashion_MNIST_labels(softmax_classify(X).argmax(dim=1).numpy())
@@ -63,10 +66,13 @@ class SoftmaxNet(nn.Module):
         return self.linear(X.view(X.shape[0], -1))
 
 
-def train_softmax_net(train_iter, test_iter, net, loss, optimizer, epoch_num):
+def train_softmax_net(train_iter, test_iter, net, loss, device, optimizer, epoch_num):
+    print('Training on:', device)
+    net = net.to(device)
     for epoch in range(epoch_num):
         train_ls_sum, train_acc_sum, n = 0., 0., 0
         for X, y in train_iter:
+            X, y = X.to(device), y.to(device)
             y_hat = net(X)
             ls = loss(y_hat, y).sum()
             optimizer.zero_grad()
@@ -87,11 +93,13 @@ def train_softmax_net(train_iter, test_iter, net, loss, optimizer, epoch_num):
 
 
 def test_softmax_net(test_iter, net):
+    print('Testing on:', device)
     X, y = iter(test_iter).next()
-    true_labels = tools.get_fashion_MNIST_labels(y.numpy())
-    pred_labels = tools.get_fashion_MNIST_labels(net(X).argmax(dim=1).numpy())
+    X, y = X.to(device), y.to(device)
+    true_labels = tools.get_fashion_MNIST_labels(y.cpu().numpy())
+    pred_labels = tools.get_fashion_MNIST_labels(net(X).argmax(dim=1).cpu().numpy())
     titles = [true + '\n' + pred for true, pred in zip(true_labels, pred_labels)]
-    tools.show_fashion_MNIST(X[0:10], titles[0:10], save_path='../figs/softmax_net_fashion_MNIST.png')
+    tools.show_fashion_MNIST(X[0:10].cpu(), titles[0:10], save_path='../figs/softmax_net_fashion_MNIST.png')
 
 
 if __name__ == '__main__':
@@ -106,11 +114,12 @@ if __name__ == '__main__':
     b = torch.zeros(num_outputs, dtype=torch.float, requires_grad=True)
     train_softmax_classify(train_iter, test_iter, W, b, epoch_num, lr, batch_size)
     test_softmax_classify(test_iter)
+    print('\n\n')
 
     # 2. test SoftmaxNet
     net = SoftmaxNet(num_inputs, num_outputs)
     loss = nn.CrossEntropyLoss()
     optimizer = optim.SGD(net.parameters(), lr)
 
-    train_softmax_net(train_iter, test_iter, net, loss, optimizer, epoch_num)
+    train_softmax_net(train_iter, test_iter, net, loss, device, optimizer, epoch_num)
     test_softmax_net(test_iter, net)

@@ -18,7 +18,7 @@ import metrics
 def get_data_batch(batch_size, features, labels):
     """
     Get data batches from given samples where features and labels are torch tensors.
-    The first h_exp is sample_num, whatever dims each feature is.
+    The first dim is sample_num, whatever dims each feature is.
     :return: data_iter consists of (X, y)
     """
     sample_num = len(features)
@@ -26,7 +26,8 @@ def get_data_batch(batch_size, features, labels):
     random.shuffle(indices)
     for i in range(0, sample_num, batch_size):
         selected_indices = torch.tensor(indices[i: min(i + batch_size, sample_num)], dtype=torch.int64)
-        yield torch.index_select(features, 0, selected_indices), torch.index_select(labels, 0, selected_indices)
+        yield torch.index_select(input=features, dim=0, index=selected_indices), \
+            torch.index_select(input=labels, dim=0, index=selected_indices)
 
 
 def get_data_batch_torch(batch_size, features, labels):
@@ -47,7 +48,7 @@ def load_fashion_MNIST(batch_size, resize=None, root='data', num_workers=4):
         trans.append(torchvision.transforms.Resize(size=resize))
     trans.append(torchvision.transforms.ToTensor())
     trans.append(torchvision.transforms.Normalize((0.5,), (0.5,)))
-    # transform is the composition of operates: resize first, and then transform it to tensor
+    # transform is the composition of operates: resize first, then transform it to tensor, at last normalize
     transform = torchvision.transforms.Compose(trans)
 
     fashion_mnist_train = torchvision.datasets.FashionMNIST(
@@ -64,13 +65,13 @@ def load_fashion_MNIST(batch_size, resize=None, root='data', num_workers=4):
     )
 
     train_iter = D.DataLoader(
-        fashion_mnist_train,
+        dataset=fashion_mnist_train,
         batch_size=batch_size,
         shuffle=True,
         num_workers=num_workers
     )
     test_iter = D.DataLoader(
-        fashion_mnist_test,
+        dataset=fashion_mnist_test,
         batch_size=batch_size,
         shuffle=False,
         num_workers=num_workers
@@ -290,7 +291,7 @@ if __name__ == '__main__':
 
     # 8. test get_timeseries_data_batch
     my_seq = list(range(30))
-    # for X, Y in get_timeseries_data_batch_random(my_seq, batch_size=2, num_steps=6):
-    #     print('X: ', X, '\nY: ', Y, '\n')
+    for X, Y in get_timeseries_data_batch_random(my_seq, batch_size=2, num_steps=6):
+        print('X: ', X, '\nY: ', Y, '\n')
     for X, Y in get_timeseries_data_batch_consecutive(my_seq, batch_size=2, num_steps=6):
         print('X: ', X, '\nY: ', Y, '\n')

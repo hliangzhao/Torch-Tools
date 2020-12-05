@@ -7,6 +7,7 @@ import numpy as np
 import tools
 import metrics
 from torch import nn, optim
+device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 
 def mlp(X):
@@ -39,7 +40,7 @@ class MLPNet(nn.Module):
 
 def dropout_mlp(X, is_training=True):
     """
-    A MLP with two hidden layers and dropout.
+    A MLP with two hidden layers and teo dropout layers.
     """
     X = X.view(-1, num_inputs)
     H1 = (torch.matmul(X, W1) + b1).relu()
@@ -90,15 +91,17 @@ if __name__ == '__main__':
     b2 = torch.zeros(num_outputs, dtype=torch.float, requires_grad=True)
     params = [W1, b1, W2, b2]
     loss = nn.CrossEntropyLoss()
-    metrics.universal_train(mlp, train_iter, test_iter, loss, epoch_num, batch_size, params=params, lr=lr, optimizer=None)
-    metrics.test_classify_mnist(test_iter, mlp, save_path='../figs/mlp_classify_fashion_MNIST.png')
+    metrics.universal_train(mlp, train_iter, test_iter, loss, epoch_num, batch_size, device, params=params, lr=lr, optimizer=None)
+    metrics.test_classify_mnist(test_iter, mlp, device, save_path='../figs/mlp_classify_fashion_MNIST.png')
+    print('\n\n')
 
     # 2. test MLPNet
     print('test MLPNet')
     net = MLPNet(num_inputs, num_hiddens, num_outputs)
     optimizer = optim.SGD(net.parameters(), lr=0.1)
-    metrics.universal_train(net, train_iter, test_iter, loss, epoch_num, batch_size, None, None, optimizer)
-    metrics.test_classify_mnist(test_iter, net, save_path='../figs/mlp_net_fashion_MNIST.png')
+    metrics.universal_train(net, train_iter, test_iter, loss, epoch_num, batch_size, device, None, None, optimizer)
+    metrics.test_classify_mnist(test_iter, net, device, save_path='../figs/mlp_net_fashion_MNIST.png')
+    print('\n\n')
 
     # 3. test dropout_mlp
     print('test dropout_mlp')
@@ -111,13 +114,13 @@ if __name__ == '__main__':
     b3 = torch.zeros(num_outputs, dtype=torch.float, requires_grad=True)
     params = [W1, b1, W2, b2, W3, b3]
     dropout_prob1, dropout_prob2 = 0.2, 0.5
-    metrics.universal_train(dropout_mlp, train_iter, test_iter, loss, epoch_num, batch_size, params=params, lr=lr,
+    metrics.universal_train(dropout_mlp, train_iter, test_iter, loss, epoch_num, batch_size, device, params=params, lr=lr,
                             optimizer=None)
+    print('\n\n')
 
     # 4. test DropoutMLP
     print('test DropoutMLP')
     net = DropoutMLP(num_inputs, num_hiddens, num_hiddens1, num_outputs, dropout_prob1, dropout_prob2)
     optimizer = optim.SGD(net.parameters(), lr=0.1)
-    metrics.universal_train(net, train_iter, test_iter, loss, epoch_num, batch_size, None, None,
+    metrics.universal_train(net, train_iter, test_iter, loss, epoch_num, batch_size, device, None, None,
                             optimizer=optimizer)
-

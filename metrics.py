@@ -7,7 +7,6 @@ from torch import nn, optim
 import torch.nn.functional as F
 import tools
 import time
-import math
 
 
 def squared_loss(y_hat, y):
@@ -28,11 +27,12 @@ def cross_entropy_loss(y_hat, y):
     return -torch.log(y_hat.gather(1, y.view(-1, 1)))
 
 
-def hinge_loss(y_hat, y, max_margin=1.):
+def hinge_loss(y_hat, y, device, max_margin=1.):
     """
     hinge_loss = (\sum_{i=1}^N \max (0, \sum_{c \neq y} (y_hat_{i,c} - y_hat_i[y] + delta) ) ) / N.
     :param y_hat: of size (batch_size, num_classes)
     :param y: of size (batch_size, 1) or (batch_size)
+    :param device:
     :param max_margin: 1 in default
     :return: the hinge loss
     """
@@ -40,7 +40,7 @@ def hinge_loss(y_hat, y, max_margin=1.):
     num_samples = len(y)
     corrects = y_hat[range(num_samples), y].unsqueeze(dim=0).T
     margins = y_hat - corrects + max_margin
-    return torch.mean(torch.sum(torch.max(margins, other=torch.tensor(0.)), dim=1) - 1.)
+    return torch.mean(torch.sum(torch.max(margins, other=torch.tensor(0.).to(device)), dim=1) - 1.)
 
 
 def get_classify_accuracy(y_hat, y):
@@ -48,12 +48,13 @@ def get_classify_accuracy(y_hat, y):
     Get the accuracy of given samples, where y_hat is of size (sample_num, label_num), y is of size (sample_num, 1).
     :return: a scalar of accuracy for given samples
     """
+    # .item() can be used only when the tensor is of size (1)
     return (y_hat.argmax(dim=1) == y).float().mean().item()
 
 
 def evaluate_classify_accuracy(data_iter, net, device=None):
     """
-    Calculate the accuracy over the data_iter in batch way for classification task.
+    Calculate the accuracy over the data_iter (in batch way) for classification task.
     :return: a scalar of accuracy for given samples
     """
     if device is None and isinstance(net, nn.Module):
@@ -63,7 +64,7 @@ def evaluate_classify_accuracy(data_iter, net, device=None):
     with torch.no_grad():
         for X, y in data_iter:
             if isinstance(net, nn.Module):
-                # change to eval mode for closing dropout
+                # change to eval mode
                 net.eval()
                 acc_sum += (net(X.to(device)).argmax(dim=1) == y.to(device)).float().sum().cpu().item()
                 net.train()
@@ -91,12 +92,12 @@ def softmax(Z):
     Z = XW + b is of size (sample_num, label_num).
     """
     Z_exp = Z.exp()
-    partition = Z_exp.sum(dim=1, keepdim=True)   # add for each sample
+    partition = Z_exp.sum(dim=1, keepdim=True)   # keep dim, each for a sample
     return Z_exp / partition
 
 
 def relu(X):
-    # broadcast automatically
+    # broadcast tensor([0.]) automatically
     return torch.max(X, other=torch.tensor(0.))
 
 
@@ -114,8 +115,8 @@ class FlattenLayer(nn.Module):
 
 def dropout(X, drop_prob):
     """
-    If an element of input X is dropped out, this element is set as zero, which means that this neuron is independent.
-    (Set the value of neurons as zero randomly.)
+    If an element of input X is dropped out, this element is set as zero, which means that this neuron is inactive.
+    Because the neurons are set as zero randomly, the net could not overly rely on any neuron.
     """
     X = X.float()
     assert 0 <= drop_prob <= 1
@@ -134,13 +135,20 @@ def l2_penalty(W):
     return (W**2).sum() / 2
 
 
-def universal_train(net, train_iter, test_iter, loss, num_epochs, batch_size, params=None, lr=None, optimizer=None):
+def universal_train(net, train_iter, test_iter, loss, num_epochs, batch_size, device, params=None, lr=None, optimizer=None):
     """
     A universal training function for net and used for classification.
     """
+    if isinstance(net, nn.Module):
+        net = net.to(device)
+        print('Training on:', device)
+    else:
+        print('Training on: cpu')
     for epoch in range(num_epochs):
         train_ls_sum, train_acc_sum, n = 0.0, 0.0, 0
         for X, y in train_iter:
+            if isinstance(net, torch.nn.Module):
+                X, y = X.to(device), y.to(device)
             y_hat = net(X)
             ls = loss(y_hat, y).sum()
 
@@ -167,15 +175,20 @@ def universal_train(net, train_iter, test_iter, loss, num_epochs, batch_size, pa
               % (epoch + 1, train_ls_sum / n, train_acc_sum / n, test_acc))
 
 
-def test_classify_mnist(test_iter, net, save_path):
+def test_classify_mnist(test_iter, net, device, save_path):
     """
     Use Fashion-MNIST dataset to test the classifier's effect.
     """
+    if isinstance(net, nn.Module):
+        net = net.to(device)
+        print('Testing on:', device)
     X, y = iter(test_iter).next()
-    true_labels = tools.get_fashion_MNIST_labels(y.numpy())
-    pred_labels = tools.get_fashion_MNIST_labels(net(X).argmax(dim=1).numpy())
+    if isinstance(net, nn.Module):
+        X, y = X.to(device), y.to(device)
+    true_labels = tools.get_fashion_MNIST_labels(y.cpu().numpy())
+    pred_labels = tools.get_fashion_MNIST_labels(net(X).argmax(dim=1).cpu().numpy())
     titles = [true + '\n' + pred for true, pred in zip(true_labels, pred_labels)]
-    tools.show_fashion_MNIST(X[0:10], titles[0:10], save_path=save_path)
+    tools.show_fashion_MNIST(X[0:10].cpu(), titles[0:10], save_path=save_path)
 
 
 def corr1d(X, K):
@@ -203,7 +216,7 @@ def corr2d(X, K):
     Y = torch.zeros((X.shape[0] - h + 1, X.shape[1] - w + 1))
     for i in range(Y.shape[0]):
         for j in range(Y.shape[1]):
-            # element-wise multiplication and adding afterward
+            # element-wise multiplication and sum afterward
             Y[i, j] = (X[i: i + h, j: j + w] * K).sum()
     return Y
 
@@ -389,48 +402,6 @@ def to_onehot(X, num_classes):
     return [onehot_encoding(X[:, i], num_classes) for i in range(X.shape[1])]
 
 
-def rnn_predict(prefix, num_chars, rnn, params, init_hidden_state, num_hiddens,
-                vocab_size, idx_to_char, char_to_idx, device):
-    """
-    For given prefix of chars, predict the next num_chars chars.
-    """
-    hidden_state = init_hidden_state(batch_size=1, num_hiddens=num_hiddens, device=device)
-    output = [char_to_idx[prefix[0]]]
-    for t in range(num_chars + len(prefix) - 1):
-        # batch_size, num_steps = 1, 1
-        X = to_onehot(torch.tensor([[output[-1]]], device=device), vocab_size)
-        (Y, hidden_state) = rnn(X, hidden_state, params)
-        if t < len(prefix) - 1:
-            output.append(char_to_idx[prefix[t + 1]])
-        else:
-            # notice that here Y is a list of 1 tensor, which is of size (1, vocab_size)
-            # thus we need Y[0] to get this tensor and compare the value on dim 1
-            output.append(int(Y[0].argmax(dim=1).item()))
-    return ''.join([idx_to_char[o] for o in output])
-
-
-def rnn_predict_torch(prefix, num_chars, model, idx_to_char, char_to_idx, device):
-    """
-    For given prefix of chars, predict the next num_chars chars.
-    """
-    hidden_state = None
-    output = [char_to_idx[prefix[0]]]
-    for t in range(num_chars + len(prefix) - 1):
-        X = torch.tensor([output[-1]], device=device).view(1, 1)
-        if hidden_state is not None:
-            if isinstance(hidden_state, tuple):
-                hidden_state = (hidden_state[0].to(device), hidden_state[1].to(device))
-            else:
-                hidden_state = hidden_state.to(device)
-        (Y, hidden_state) = model(X, hidden_state)
-        if t < len(prefix) - 1:
-            output.append(char_to_idx[prefix[t + 1]])
-        else:
-            # notice that here Y is of size (1, vocab_size) because both num_steps and batch_size are 1
-            output.append(int(Y.argmax(dim=1).item()))
-    return ''.join([idx_to_char[i] for i in output])
-
-
 def grad_clipping(params, theta, device):
     """
     Clip gradient when they are too large.
@@ -447,122 +418,6 @@ def grad_clipping(params, theta, device):
     if norm > theta:
         for param in params:
             param.grad.data *= theta / norm
-
-
-def rnn_train_and_predict(model, params, init_hidden_state, num_hiddens, vocab_size, idx_to_char, char_to_idx, device,
-                          corpus_indices, is_random_iter, num_epochs, num_steps,
-                          lr, clipping_theta, batch_size, pred_period, pred_len, prefixes):
-    """
-    RNN train and prediction.
-    :param model: the fn to get a rnn model
-    :param params:
-    :param init_hidden_state:
-    :param num_hiddens:
-    :param vocab_size:
-    :param idx_to_char:
-    :param char_to_idx:
-    :param device:
-    :param corpus_indices:
-    :param is_random_iter: the data batch is obtained by random sampling or consecutive sampling
-    :param num_epochs:
-    :param num_steps:
-    :param lr:
-    :param clipping_theta:
-    :param batch_size:
-    :param pred_period: how often do we make predictions
-    :param pred_len: the next pred_len chars to predict
-    :param prefixes: the list of prefixes
-    :return:
-    """
-    if is_random_iter:
-        data_iter_fn = tools.get_timeseries_data_batch_random
-    else:
-        data_iter_fn = tools.get_timeseries_data_batch_consecutive
-    loss = nn.CrossEntropyLoss()
-
-    for epoch in range(num_epochs):
-        if not is_random_iter:
-            # if use consecutive sampling, the hidden state should be initialized only at the beginning of each epoch
-            # initialization is not required at the beginning of each minibatch
-            hidden_state = init_hidden_state(batch_size, num_hiddens, device)
-        ls_sum, n, start = 0., 0, time.time()
-        data_iter = data_iter_fn(corpus_indices, batch_size, num_steps, device)
-        for X, Y in data_iter:
-            if is_random_iter:
-                # if use random sampling, the hidden state should be initialized at the beginning of each minibatch
-                hidden_state = init_hidden_state(batch_size, num_hiddens, device)
-            else:
-                # notice that hidden_state is of size (batch_size, num_hiddens), which are belated from the last epoch
-                # the hidden states of these samples should be detached from the computation graph
-                for s in hidden_state:
-                    s.detach_()
-
-            inputs = to_onehot(X, num_classes=vocab_size)
-            (outputs, hidden_state) = model(inputs, hidden_state, params)
-            # notice that the outputs is a list of num_steps tensors, each of size (batch_size, vocab_size)
-            # after torch.cat, outputs is a tensor of size (num_steps * batch_size, vocab_size)
-            # outputs = [sample1_step1, sample2_step1, ..., samplen_step1,
-            #            sample1_step2, sample2_step2, ..., samplen_step2,
-            #            ...        ...     ...     ...
-            #            sample1_stepm, sample2_stepm, ..., samplen_stepm]
-            outputs = torch.cat(outputs, dim=0)
-            # y = [sample1_step1, sample2_step1, ..., samplen_step1,
-            #      sample1_step2, sample2_step2, ..., samplen_step2,
-            #      ...        ...     ...     ...
-            #      sample1_stepm, sample2_stepm, ..., samplen_stepm]
-            y = torch.transpose(Y, 0, 1).contiguous().view(-1)
-            ls = loss(outputs, y.long())    # turn y into long type as label
-
-            if params[0].grad is not None:
-                for param in params:
-                    param.grad.data.zero_()
-            ls.backward()
-            grad_clipping(params, clipping_theta, device)
-            sgd(params, lr, batch_size=1)         # ls has been averaged, here batch_size is set as 1
-            ls_sum += ls.item() * y.shape[0]
-            n += y.shape[0]                       # y.shape[0] is num_steps * batch_size
-
-        if (epoch + 1) % pred_period == 0:
-            print('epoch %d, perplexity %f, time %.2f sec' % (epoch + 1, math.exp(ls_sum / n), time.time() - start))
-            for prefix in prefixes:
-                print(' -', rnn_predict(prefix, pred_len, model, params, init_hidden_state, num_hiddens,
-                                        vocab_size, idx_to_char, char_to_idx, device))
-
-
-def rnn_train_and_predict_torch(model, vocab_size, idx_to_char, char_to_idx, device,
-                                corpus_indices, num_epochs, num_steps, lr, clipping_theta,
-                                batch_size, pred_period, pred_len, prefixes):
-    loss = nn.CrossEntropyLoss()
-    optimizer = optim.Adam(model.parameters(), lr=lr)
-    model.to(device)
-    hidden_state = None
-    for epoch in range(num_epochs):
-        ls_sum, n, start = 0., 0, time.time()
-        data_iter = tools.get_timeseries_data_batch_consecutive(corpus_indices, batch_size, num_steps, device)
-        for X, Y in data_iter:
-            if hidden_state is not None:
-                if isinstance(hidden_state, tuple):
-                    hidden_state = (hidden_state[0].detach(), hidden_state[1].detach())
-                else:
-                    hidden_state = hidden_state.detach()
-            (output, hidden_state) = model(X, hidden_state)
-            y = torch.transpose(Y, 0, 1).contiguous().view(-1)
-            ls = loss(output, y.long())                 # output and y are of shape (num_steps * batch_size, vocab_size)
-            optimizer.zero_grad()
-            ls.backward()
-            grad_clipping(model.parameters(), clipping_theta, device)
-            optimizer.step()
-            ls_sum += ls.item() * y.shape[0]
-            n += y.shape[0]
-        try:
-            perplexity = math.exp(ls_sum / n)
-        except OverflowError:
-            perplexity = float('inf')
-
-        if (epoch + 1) % pred_period == 0:
-            print('epoch %d, perplexity %f, time %.2f sec' % (epoch + 1, perplexity, time.time() - start))
-            for prefix in prefixes:
-                print(' -', rnn_predict_torch(prefix, pred_len, model, idx_to_char, char_to_idx, device))
 
 
 if __name__ == '__main__':

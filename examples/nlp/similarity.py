@@ -14,7 +14,7 @@ def get_pretrained_vec(name='6B', dim=50):
     Get pretrained embedding vectors.
     """
     # this dir is out of this project
-    return Vocab.GloVe(name, dim, cache='../../../D2L-PyTorch/data/pretrained_glove')
+    return Vocab.GloVe(name, dim, cache='../../data/pretrained_glove')
 
 
 def knn(W, x, k):

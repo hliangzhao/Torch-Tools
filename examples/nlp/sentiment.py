@@ -16,7 +16,7 @@ import metrics
 
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-DATA_ROOT = '../../../D2L-PyTorch/data'           # this dir is out of this project
+DATA_ROOT = '../../data'           # this dir is out of this project
 
 
 def get_pretrained_vec(name='6B', dim=100):
@@ -24,7 +24,7 @@ def get_pretrained_vec(name='6B', dim=100):
     Get pretrained embedding vectors.
     """
     # this dir is out of this project
-    return Vocab.GloVe(name, dim, cache='../../../D2L-PyTorch/data/pretrained_glove')
+    return Vocab.GloVe(name, dim, cache='../../data/pretrained_glove')
 
 
 def read_imdb(folder='train', path=os.path.join(DATA_ROOT, 'aclImdb')):
@@ -198,6 +198,7 @@ if __name__ == '__main__':
     glove = get_pretrained_vec()
 
     # 3. test BiRNN
+    print('\n\nTest Bi-RNN')
     embed_size, num_hiddens, num_layers = 100, 100, 2
     net = BiRNN(vocab, embed_size, num_hiddens, num_layers)
     net.embedding.weight.data.copy_(load_pretrained_embedding(vocab.itos, glove))
@@ -206,16 +207,17 @@ if __name__ == '__main__':
     lr, num_epochs_1 = 0.01, 1
     optimizer_1 = torch.optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=lr)
     loss_1 = nn.CrossEntropyLoss()
-    metrics.universal_train(net, train_iter, test_iter, loss_1, num_epochs_1, batch_size, lr, optimizer_1)
+    metrics.universal_train(net, train_iter, test_iter, loss_1, num_epochs_1, batch_size, device, params=None, lr=None, optimizer=optimizer_1)
 
     print(predict_sentiment(net, vocab, ['this', 'movie', 'is', 'so', 'great']))
 
     # 4. test TextCNN
+    print('\n\nTest TextCNN')
     embed_size, kernel_sizes, nums_channels = 100, [3, 4, 5], [100, 100, 100]
     net = TextCNN(vocab, embed_size, kernel_sizes, nums_channels)
     lr, num_epochs_2 = 0.001, 5
     optimizer_2 = torch.optim.Adam(filter(lambda p: p.requires_grad, net.parameters()), lr=lr)
     loss_2 = nn.CrossEntropyLoss()
-    metrics.universal_train(net, train_iter, test_iter, loss_2, num_epochs_2, batch_size, lr, optimizer_2)
+    metrics.universal_train(net, train_iter, test_iter, loss_2, num_epochs_2, batch_size, device, params=None, lr=None, optimizer=optimizer_2)
 
     print(predict_sentiment(net, vocab, ['this', 'movie', 'is', 'so', 'great']))
